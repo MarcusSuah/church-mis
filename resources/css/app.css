@@ -1,0 +1,492 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+@import 'tailwindcss';
+
+@import 'tw-animate-css';
+
+/* Ported from the old tailwind.config.js's `plugins: [require('@tailwindcss/typography')]` —
+   v4 loads plugins via this directive instead of a JS config array.
+   Run: npm install -D @tailwindcss/typography */
+@plugin '@tailwindcss/typography';
+
+@source '../views';
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+
+@custom-variant dark (&:is(.dark *));
+/* Public website */
+@utility eyebrow {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+}
+@utility surface-sanctuary {
+    background-color: var(--color-primary);
+    color: var(--color-primary-foreground);
+}
+@utility rule-brass {
+    border-top: 2px solid var(--color-accent);
+}
+@utility font-display {
+    font-family: 'Playfair Display', ui-serif, Georgia, serif;
+}
+/* Ported from the old config's `container: { center: true, padding: '1rem' }` —
+   v4 removed those container options in favor of overriding the utility directly. */
+@utility container {
+    margin-inline: auto;
+    padding-inline: 1rem;
+}
+
+@theme {
+    --font-sans:
+        'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif,
+        'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+        'Noto Color Emoji';
+    --font-mono:
+        'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas,
+        'Liberation Mono', monospace;
+
+    --radius-lg: var(--radius);
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-sm: calc(var(--radius) - 4px);
+    /* Ported from the old config's borderRadius scale — it went two steps
+       larger than what was already here. */
+    --radius-xl: calc(var(--radius) + 4px);
+    --radius-2xl: calc(var(--radius) + 8px);
+
+    /* Ported from the old config's boxShadow extend — generates
+       shadow-card / shadow-elevated / shadow-modal utilities. */
+    --shadow-card:
+        0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.06);
+    --shadow-elevated:
+        0 4px 12px 0 rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-modal: 0 20px 60px -10px rgba(0, 0, 0, 0.25);
+
+    /* Ported from the old config's animation extend. The @keyframes
+       themselves already exist further down in this file (fadeIn, slideUp,
+       scaleIn, pulseHighlight) — this just wires them up as real
+       animate-fade-in / animate-slide-up / etc. utilities, which support
+       variants (hover:animate-fade-in) the way the old .fade-in-style
+       hand-rolled classes below can't. Those classes are left as-is since
+       nothing conflicts; feel free to migrate off them later. */
+    --animate-fade-in: fadeIn 200ms ease forwards;
+    --animate-slide-up: slideUp 200ms ease forwards;
+    --animate-scale-in: scaleIn 150ms ease forwards;
+    --animate-pulse-highlight: pulseHighlight 600ms ease;
+
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+
+    --color-destructive: var(--destructive);
+    --color-destructive-foreground: var(--destructive-foreground);
+
+    --color-border: var(--border);
+    --color-input: var(--input);
+    --color-ring: var(--ring);
+
+    /* Semantic status colors, matching your original component classes
+       (bg-success, text-danger, bg-info-bg, etc.) */
+    --color-success: var(--success);
+    --color-success-foreground: var(--success-foreground);
+    --color-success-bg: var(--success-bg);
+    --color-warning: var(--warning);
+    --color-warning-foreground: var(--warning-foreground);
+    --color-warning-bg: var(--warning-bg);
+    --color-danger: var(--danger);
+    --color-danger-foreground: var(--danger-foreground);
+    --color-danger-bg: var(--danger-bg);
+    --color-info: var(--info);
+    --color-info-foreground: var(--info-foreground);
+    --color-info-bg: var(--info-bg);
+
+    --color-chart-1: var(--chart-1);
+    --color-chart-2: var(--chart-2);
+    --color-chart-3: var(--chart-3);
+    --color-chart-4: var(--chart-4);
+    --color-chart-5: var(--chart-5);
+
+    --color-sidebar: var(--sidebar);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-ring: var(--sidebar-ring);
+}
+
+:root {
+    --background: #f8f7f4;
+    --foreground: #0f1c2e;
+    --card: #ffffff;
+    --card-foreground: #0f1c2e;
+    --popover: #ffffff;
+    --popover-foreground: #0f1c2e;
+    --primary: #1e3a5f;
+    --primary-foreground: #ffffff;
+    --secondary: #f0ebe0;
+    --secondary-foreground: #1e3a5f;
+    --muted: #e8e4db;
+    --muted-foreground: #6b7280;
+    --accent: #c9a84c;
+    --accent-foreground: #ffffff;
+    --destructive: #dc2626;
+    --destructive-foreground: #ffffff;
+    --border: #ddd8ce;
+    --input: #e8e4db;
+    --ring: #c9a84c;
+
+    --success: #16a34a;
+    --success-foreground: #ffffff;
+    --success-bg: #f0fdf4;
+    --warning: #d97706;
+    --warning-foreground: #ffffff;
+    --warning-bg: #fffbeb;
+    --danger: #dc2626;
+    --danger-foreground: #ffffff;
+    --danger-bg: #fef2f2;
+    --info: #2563eb;
+    --info-foreground: #ffffff;
+    --info-bg: #eff6ff;
+
+    /* Not in the original file — built from the accent/primary/status colors
+       above so charts have a cohesive 5-color palette. */
+    --chart-1: #c9a84c;
+    --chart-2: #1e3a5f;
+    --chart-3: #16a34a;
+    --chart-4: #2563eb;
+    --chart-5: #d97706;
+
+    --radius: 0.5rem;
+
+    /* Not in the original file — matches the navy `bg-primary` sidebar look
+       from your Sidebar.tsx (active item ≈ bg-white/15, hover ≈ bg-white/10,
+       approximated here as solid shades since CSS vars can't carry alpha
+       overlays the way the old className strings did). */
+    --sidebar: #1e3a5f;
+    --sidebar-foreground: #ffffff;
+    --sidebar-primary: #2d5492;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: #24446b;
+    --sidebar-accent-foreground: #ffffff;
+    --sidebar-border: #2a4a72;
+    --sidebar-ring: #c9a84c;
+
+    --sidebar-width: 260px;
+    --sidebar-collapsed: 68px;
+    --topbar-height: 64px;
+}
+
+/* Not in the original file — it only defined a light theme. Derived to keep
+   the app's existing dark-mode toggle working; adjust freely if you had a
+   different dark palette in mind. */
+.dark {
+    --background: #0b1420;
+    --foreground: #f1f0ec;
+    --card: #101d2f;
+    --card-foreground: #f1f0ec;
+    --popover: #101d2f;
+    --popover-foreground: #f1f0ec;
+    --primary: #3d6ea5;
+    --primary-foreground: #ffffff;
+    --secondary: #1c2a3d;
+    --secondary-foreground: #f1f0ec;
+    --muted: #172436;
+    --muted-foreground: #8b95a3;
+    --accent: #c9a84c;
+    --accent-foreground: #1e1206;
+    --destructive: #dc2626;
+    --destructive-foreground: #ffffff;
+    --border: #223349;
+    --input: #1c2a3d;
+    --ring: #c9a84c;
+
+    --success: #22c55e;
+    --success-foreground: #06210f;
+    --success-bg: #0d2818;
+    --warning: #f59e0b;
+    --warning-foreground: #2b1a02;
+    --warning-bg: #2c2008;
+    --danger: #ef4444;
+    --danger-foreground: #2a0a0a;
+    --danger-bg: #2a1212;
+    --info: #3b82f6;
+    --info-foreground: #05122b;
+    --info-bg: #0c1c33;
+
+    --chart-1: #c9a84c;
+    --chart-2: #3d6ea5;
+    --chart-3: #22c55e;
+    --chart-4: #3b82f6;
+    --chart-5: #f59e0b;
+
+    --sidebar: #14243a;
+    --sidebar-foreground: #f1f0ec;
+    --sidebar-primary: #2d5492;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: #1c3350;
+    --sidebar-accent-foreground: #ffffff;
+    --sidebar-border: #223349;
+    --sidebar-ring: #c9a84c;
+}
+
+@layer base {
+    * {
+        @apply border-border;
+        box-sizing: border-box;
+    }
+
+    body {
+        @apply bg-background text-foreground;
+        font-family: var(--font-sans);
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    html {
+        scroll-behavior: smooth;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6,
+    p {
+        margin: 0;
+    }
+
+    input[type='number']::-webkit-inner-spin-button,
+    input[type='number']::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+}
+
+@layer utilities {
+    .font-mono-nums {
+        font-family: var(--font-mono);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .tabular-nums {
+        font-variant-numeric: tabular-nums;
+    }
+
+    .sidebar-transition {
+        transition:
+            width 300ms ease,
+            transform 300ms ease;
+    }
+
+    .content-transition {
+        transition: margin-left 300ms ease;
+    }
+
+    .fade-in {
+        animation: fadeIn 200ms ease forwards;
+    }
+
+    .slide-up {
+        animation: slideUp 200ms ease forwards;
+    }
+
+    .scale-in {
+        animation: scaleIn 150ms ease forwards;
+    }
+
+    .pulse-highlight {
+        animation: pulseHighlight 600ms ease;
+    }
+
+    .text-hero-xl {
+        font-size: clamp(1.5rem, 3vw, 2.25rem);
+    }
+
+    .scrollbar-thin {
+        scrollbar-width: thin;
+        scrollbar-color: var(--border) transparent;
+    }
+
+    .scrollbar-thin::-webkit-scrollbar {
+        width: 4px;
+        height: 4px;
+    }
+
+    .scrollbar-thin::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .scrollbar-thin::-webkit-scrollbar-thumb {
+        background-color: var(--border);
+        border-radius: 2px;
+    }
+
+    .gradient-gold {
+        background: linear-gradient(
+            135deg,
+            #a07830 0%,
+            #c9a84c 50%,
+            #e8c870 100%
+        );
+    }
+
+    .gradient-navy {
+        background: linear-gradient(135deg, #1e3a5f 0%, #2d5492 100%);
+    }
+
+    .glass-card {
+        background: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(201, 168, 76, 0.2);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes scaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes pulseHighlight {
+    0% {
+        background-color: transparent;
+    }
+    30% {
+        background-color: rgba(201, 168, 76, 0.15);
+    }
+    100% {
+        background-color: transparent;
+    }
+}
+
+@layer components {
+    .btn-primary {
+        @apply inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-all duration-150 active:scale-95 disabled:pointer-events-none disabled:opacity-50;
+    }
+
+    .btn-accent {
+        @apply inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition-all duration-150 active:scale-95 disabled:pointer-events-none disabled:opacity-50;
+    }
+
+    .btn-outline {
+        @apply inline-flex items-center justify-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-semibold text-primary transition-all duration-150 hover:bg-secondary active:scale-95 disabled:pointer-events-none disabled:opacity-50;
+    }
+
+    .btn-ghost {
+        @apply inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-all duration-150 hover:bg-muted hover:text-foreground active:scale-95;
+    }
+
+    .btn-danger {
+        @apply inline-flex items-center justify-center gap-2 rounded-lg bg-danger px-4 py-2 text-sm font-semibold text-white transition-all duration-150 active:scale-95 disabled:pointer-events-none disabled:opacity-50;
+    }
+
+    .input-field {
+        @apply w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground transition-colors duration-150 placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring focus:outline-none;
+    }
+
+    .label-text {
+        @apply mb-1 block text-sm font-medium text-foreground;
+    }
+
+    .helper-text {
+        @apply mt-1 text-xs text-muted-foreground;
+    }
+
+    .error-text {
+        @apply mt-1 text-xs text-danger;
+    }
+
+    .card {
+        @apply rounded-xl border border-border bg-card shadow-sm;
+    }
+
+    .section-header {
+        @apply text-lg font-semibold text-foreground;
+    }
+
+    .page-title {
+        @apply text-2xl font-semibold text-foreground;
+    }
+
+    .metric-value {
+        @apply text-3xl font-bold text-foreground tabular-nums;
+    }
+
+    .metric-label {
+        @apply text-xs font-medium tracking-wide text-muted-foreground uppercase;
+    }
+
+    .status-badge {
+        @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold;
+    }
+
+    .nav-item {
+        @apply flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150;
+    }
+
+    .nav-item-active {
+        @apply bg-primary text-primary-foreground;
+    }
+
+    .nav-item-inactive {
+        @apply text-muted-foreground hover:bg-muted hover:text-foreground;
+    }
+
+    .table-header {
+        @apply px-4 py-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase;
+    }
+
+    .table-cell {
+        @apply px-4 py-3 text-sm text-foreground;
+    }
+
+    .table-row {
+        @apply border-b border-border transition-colors duration-100;
+    }
+}

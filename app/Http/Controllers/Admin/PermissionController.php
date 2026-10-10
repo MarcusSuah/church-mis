@@ -1,0 +1,107 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Models\Permission;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
+use Inertia\Response;
+
+class PermissionController extends Controller
+{
+    public function index(Request $request): Response
+    {
+        $query = Permission::query()
+            ->withCount('roles')
+            ->orderBy('module')
+            ->orderBy('name');
+
+        if ($request->filled('search')) {
+            $search = $request->string('search')->trim()->toString();
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhere('module', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('module')) {
+            $query->where('module', $request->string('module')->toString());
+        }
+
+        $perPage = $request->integer('per_page', 15);
+        $perPage = in_array($perPage, [10, 15, 20, 25, 30, 40, 50], true) ? $perPage : 15;
+
+        $permissions = $query
+            ->paginate($perPage)
+            ->withQueryString()
+            ->through(fn (Permission $permission) => $this->transform($permission));
+
+        return Inertia::render('Admin/Permissions/Index', [
+            'permissions' => $permissions,
+            'modules' => Permission::query()->distinct()->orderBy('module')->pluck('module')->filter()->values(),
+            'filters' => [
+                'search' => $request->string('search')->toString(),
+                'module' => $request->string('module')->toString(),
+                'per_page' => (string) $perPage,
+            ],
+        ]);
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255', Rule::unique('permissions', 'name')],
+            'module' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        Permission::create([
+            ...$validated,
+            'guard_name' => 'web',
+        ]);
+
+        return back();
+    }
+
+    public function update(Request $request, Permission $permission): RedirectResponse
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255', Rule::unique('permissions', 'name')->ignore($permission->id)],
+            'module' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $permission->update($validated);
+
+        return back();
+    }
+
+    public function destroy(Permission $permission): RedirectResponse
+    {
+        if ($permission->roles()->exists()) {
+            throw ValidationException::withMessages([
+                'permission' => 'This permission is still assigned to one or more roles.',
+            ]);
+        }
+
+        $permission->delete();
+
+        return back();
+    }
+
+    private function transform(Permission $permission): array
+    {
+        return [
+            'id' => $permission->id,
+            'name' => $permission->name,
+            'module' => $permission->module,
+            'description' => $permission->description,
+            'roles_count' => $permission->roles_count,
+        ];
+    }
+}

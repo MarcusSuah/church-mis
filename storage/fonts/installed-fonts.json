@@ -1,0 +1,15 @@
+{
+    "greatvibes": {
+        "normal": "greatvibes_normal_4905ec05261f3bd649977a3d02b526c5"
+    },
+    "cinzel": {
+        "normal": "cinzel_normal_b0813eed2565bca5badafca04b01214a"
+    },
+    "garamond": {
+        "normal": "C:\\projects\\church\\storage\\fonts\/garamond_normal_70d45ca6fce119a8a18a98d1f07b159e",
+        "italic": "garamond_italic_72c35d2a08c2aa94fea6094e10f93aef"
+    },
+    "playfair": {
+        "normal": "playfair_normal_629a69c95a560b1c92d439e7165054d6"
+    }
+}

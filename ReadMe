@@ -1,0 +1,27 @@
+php artisan optimize:clear
+php artisan config:clear
+php artisan storage:link
+
+php artisan permission:cache-reset
+    composer dump-autoload
+    php artisan migrate           
+     # 2026_10_09_100000_phase2_security_hardening
+     php artisan members:accounts --retire-default="<old-shared-password>" --dry-run
+       php artisan members:accounts --retire-default="<old-shared-password>"
+ php artisan members:accounts --dry-run
+    php artisan members:accounts
+    php artisan members:accounts --reset=member@example.com
+      php artisan test --filter=Phase2SecurityTest
+    php artisan test
+
+composer dump-autoload
+php artisan migrate
+php artisan optimize:clear
+npm run build
+
+
+
+
+git remote add origin https://github.com/MarcusSuah/church-mis.git
+git branch -M main
+git push -u origin main
