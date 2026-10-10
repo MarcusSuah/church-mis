@@ -231,6 +231,15 @@ export default function PendingRegistrationsIndex({
                     </div>
 
                     <div className="scrollbar-thin space-y-2 overflow-y-auto pr-1 lg:max-h-[calc(100vh-320px)]">
+                        {registrations.length > 0 &&
+                            counts[filters.status] > registrations.length && (
+                                <p className="px-1 text-xs text-muted-foreground">
+                                    Showing the newest {registrations.length} of{' '}
+                                    {counts[filters.status].toLocaleString()}.
+                                    Use search to find a specific registration.
+                                </p>
+                            )}
+
                         {registrations.length === 0 && (
                             <div className="card flex flex-col items-center gap-2 p-10 text-center">
                                 <ClipboardList className="size-6 text-muted-foreground" />

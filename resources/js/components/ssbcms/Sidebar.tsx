@@ -9,7 +9,8 @@ type BadgeKey =
     | 'activePrayers'
     | 'notifications'
     | 'pendingDocuments'
-    | 'birthdaysToday';
+    | 'birthdaysToday'
+    | 'newMessages';
 
 type NavItem = {
     id: string;
@@ -47,6 +48,14 @@ const STAFF_NAV: NavGroup[] = [
                 icon: 'GlobeAltIcon',
                 href: '/website-content',
                 permission: 'website.manage',
+            },
+            {
+                id: 'nav-messages',
+                label: 'Messages',
+                icon: 'EnvelopeIcon',
+                href: '/messages',
+                permission: 'messages.view',
+                badge: 'newMessages',
             },
         ],
     },
@@ -463,6 +472,7 @@ export default function Sidebar({
             0,
         pendingDocuments: (props.pendingDocumentCount as number | null) ?? 0,
         birthdaysToday: (props.birthdaysTodayCount as number | null) ?? 0,
+        newMessages: (props.newMessagesCount as number | null) ?? 0,
     };
 
     const groups = nav

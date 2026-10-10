@@ -19,6 +19,7 @@ body { background: #f6f6f8; font-family: 'Garamond', DejaVu Serif, serif; color:
 .church { top: 40pt; font-size: 10pt; letter-spacing: 2pt; color: #6b7090; text-transform: uppercase; }
 </style></head>
 <body>
+@include('pdf.certificates._watermark')
 <div class="outer"></div><div class="inner"></div>
 <img class="abs" src="{{ $A::corner('#4a5596') }}" style="left:36pt;top:36pt;width:82pt">
 <img class="abs" src="{{ $A::corner('#4a5596', 'tr') }}" style="right:36pt;top:36pt;width:82pt">

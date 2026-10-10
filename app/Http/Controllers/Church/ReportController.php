@@ -24,9 +24,11 @@ use App\Models\Wedding;
 use App\Support\ChurchLogo;
 use App\Support\Csv;
 use App\Support\Money;
+use App\Support\StatsCache;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -49,6 +51,9 @@ class ReportController extends Controller
 
     /** Rows listed in the "New members in period" table (the count above it covers all of them). */
     private const NEW_MEMBER_ROWS = 500;
+
+    /** @var list<class-string> */
+    private const GIVING_MODELS = [Tithe::class, Offering::class, Donation::class];
 
     public const RANGES = [
         'this_month' => 'This Month', 'last_month' => 'Last Month', 'this_quarter' => 'This Quarter',
@@ -179,12 +184,41 @@ class ReportController extends Controller
     {
         $r = [$from->toDateString(), $to->toDateString()];
 
-        return round(Money::sum(Tithe::whereBetween('tithe_date', $r)) + Money::sum(Offering::whereBetween('offering_date', $r)) + Money::sum(Donation::whereBetween('donation_date', $r)), 2);
+        // Cached per period until a gift changes (StatsCache), so reopening the report is instant.
+        return StatsCache::rememberFor(self::GIVING_MODELS, "income:{$r[0]}:{$r[1]}", fn () => round(
+            Money::sum(Tithe::whereBetween('tithe_date', $r)) + Money::sum(Offering::whereBetween('offering_date', $r)) + Money::sum(Donation::whereBetween('donation_date', $r)), 2));
+    }
+
+    /**
+     * The 15 biggest givers in the period across tithes, offerings and donations,
+     * ranked entirely in SQL (one UNION, grouped and limited), so only 15 rows
+     * ever reach PHP however many gifts there are.
+     *
+     * @param  array{0: string, 1: string}  $r
+     * @return Collection<int, object{name: string, gifts: int, total: float}>
+     */
+    private function topGivers(array $r): Collection
+    {
+        $part = fn (string $model, string $date, string $name) => $model::whereBetween($date, $r)->whereNotNull($name)->toBase()
+            ->selectRaw("{$name} as name, ".Money::sql().' as amount');
+
+        $gifts = $part(Tithe::class, 'tithe_date', 'member_name')
+            ->unionAll($part(Offering::class, 'offering_date', 'member_name'))
+            ->unionAll($part(Donation::class, 'donation_date', 'donor_name'));
+
+        return DB::query()->fromSub($gifts, 'gifts')
+            ->selectRaw('name, COUNT(*) as gifts, SUM(amount) as total')
+            ->whereNotIn('name', ['', 'Anonymous Donor', 'Congregation (plate offering)'])
+            ->where('name', 'not like', 'Service collection%')
+            ->groupBy('name')->orderByDesc('total')->limit(15)
+            ->get();
     }
 
     private function expenses(CarbonImmutable $from, CarbonImmutable $to): float
     {
-        return Money::sum(Expense::whereBetween('expense_date', [$from->toDateString(), $to->toDateString()])->whereIn('status', ['Paid', 'Approved']));
+        $r = [$from->toDateString(), $to->toDateString()];
+
+        return StatsCache::rememberFor([Expense::class], "expenses:{$r[0]}:{$r[1]}", fn () => Money::sum(Expense::whereBetween('expense_date', $r)->whereIn('status', ['Paid', 'Approved'])));
     }
 
     /**
@@ -252,6 +286,13 @@ class ReportController extends Controller
     private function finance(CarbonImmutable $from, CarbonImmutable $to): array
     {
         $r = [$from->toDateString(), $to->toDateString()];
+
+        return StatsCache::rememberFor([...self::GIVING_MODELS, Expense::class], "finance-report:{$r[0]}:{$r[1]}", fn () => $this->buildFinance($from, $to));
+    }
+
+    private function buildFinance(CarbonImmutable $from, CarbonImmutable $to): array
+    {
+        $r = [$from->toDateString(), $to->toDateString()];
         $tithes = Money::sum(Tithe::whereBetween('tithe_date', $r));
         $offerings = Money::sum(Offering::whereBetween('offering_date', $r));
         $donations = Money::sum(Donation::whereBetween('donation_date', $r));
@@ -276,13 +317,8 @@ class ReportController extends Controller
             $this->section('Income by fund ('.Money::base().')', ['Fund', 'Amount'], collect([[Tithe::class, 'tithe_date'], [Offering::class, 'offering_date'], [Donation::class, 'donation_date']])
                 ->flatMap(fn ($x) => $x[0]::whereBetween($x[1], $r)->toBase()->selectRaw('fund_name, sum('.Money::sql().') as total')->groupBy('fund_name')->get())
                 ->groupBy('fund_name')->map(fn ($g, $fund) => [$fund, Money::format((float) $g->sum('total'))])->values()),
-            $this->section('Top givers in period ('.Money::base().')', ['Name', 'Gifts', 'Total'], collect([[Tithe::class, 'tithe_date', 'member_name'], [Offering::class, 'offering_date', 'member_name'], [Donation::class, 'donation_date', 'donor_name']])
-                // Aggregated in SQL (Phase 3, F07): one row per giver per table, not every gift in the period.
-                ->flatMap(fn ($x) => $x[0]::whereBetween($x[1], $r)->whereNotNull($x[2])->toBase()
-                    ->selectRaw("{$x[2]} as name, count(*) as gifts, sum(".Money::sql().') as total')->groupBy($x[2])->get())
-                ->filter(fn ($g) => $g->name && ! in_array($g->name, ['Anonymous Donor', 'Congregation (plate offering)'], true) && ! str_starts_with($g->name, 'Service collection'))
-                ->groupBy('name')->map(fn ($g, $name) => [$name, (int) $g->sum('gifts'), (float) $g->sum('total')])
-                ->sortByDesc(fn ($x) => $x[2])->take(15)->map(fn ($x) => [$x[0], $x[1], Money::format($x[2])])->values()),
+            $this->section('Top givers in period ('.Money::base().')', ['Name', 'Gifts', 'Total'], $this->topGivers($r)
+                ->map(fn ($g) => [$g->name, (int) $g->gifts, Money::format((float) $g->total)])),
         ]];
     }
 

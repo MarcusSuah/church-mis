@@ -17,9 +17,12 @@ class ChurchSettings
 
     /** Keys an admin can edit, with their config fallbacks. */
     public const KEYS = ['name', 'short_name', 'address', 'email', 'phone', 'logo_url', 'currency', 'exchange_rate', 'birthday_notifications', 'senior_pastor', 'church_secretary',
-    // Public website
+        // Public website
         'tagline', 'description', 'mission', 'vision', 'story', 'pastor_message', 'city', 'country',
-        'service_sunday_school', 'service_sunday_worship', 'service_bible_study', 'service_prayer_meeting',];
+        'service_sunday_school', 'service_sunday_worship', 'service_bible_study', 'service_prayer_meeting',
+        // About page (heading and three photos with captions) and Contact page intro
+        'about_heading', 'about_image_1', 'about_image_2', 'about_image_3',
+        'about_caption_1', 'about_caption_2', 'about_caption_3', 'contact_intro', ];
 
     public static function all(): array
     {

@@ -8,8 +8,10 @@ import {
     Users,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import { PublicLayout } from '@/components/site/PublicLayout';
 import { Button } from '@/components/ui/button';
+import { safeUrl } from '@/lib/safe-url';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatDate, useSite } from '@/lib/site';
 
@@ -77,6 +79,31 @@ function SectionHeading({
     );
 }
 
+/**
+ * Hero button link. Pages on this site use Inertia; other websites open in a
+ * new tab. Unsafe URLs (javascript:, data:) are not rendered as links.
+ */
+function SlideLink({
+    href,
+    children,
+    ...rest
+}: { href: string; children: ReactNode } & Record<string, unknown>) {
+    const url = safeUrl(href);
+    if (!url) return <span {...rest}>{children}</span>;
+    if (new URL(url).origin !== window.location.origin) {
+        return (
+            <a href={url} target="_blank" rel="noopener noreferrer" {...rest}>
+                {children}
+            </a>
+        );
+    }
+    return (
+        <Link href={url} {...rest}>
+            {children}
+        </Link>
+    );
+}
+
 /** Active hero slides; several rotate every 7 seconds. */
 function Hero({ slides }: { slides: Slide[] }) {
     const { get } = useSite();
@@ -106,7 +133,9 @@ function Hero({ slides }: { slides: Slide[] }) {
                     key={s.id}
                     src={s.image_url}
                     alt=""
-                    className="absolute inset-0 h-full w-full object-cover fade-in"
+                    width={1920}
+                    height={1088}
+                    className="absolute inset-0 h-full w-full object-cover"
                 />
             )}
             <div className="absolute inset-0 bg-primary/85" />
@@ -123,7 +152,9 @@ function Hero({ slides }: { slides: Slide[] }) {
                 <div className="mt-9 flex flex-wrap gap-3">
                     {s.primary_label && s.primary_url && (
                         <Button asChild size="lg" variant="secondary">
-                            <Link href={s.primary_url}>{s.primary_label}</Link>
+                            <SlideLink href={s.primary_url}>
+                                {s.primary_label}
+                            </SlideLink>
                         </Button>
                     )}
                     {s.secondary_label && s.secondary_url && (
@@ -133,9 +164,9 @@ function Hero({ slides }: { slides: Slide[] }) {
                             variant="outline"
                             className="border-primary-foreground/40 bg-transparent text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
                         >
-                            <Link href={s.secondary_url}>
+                            <SlideLink href={s.secondary_url}>
                                 {s.secondary_label}
-                            </Link>
+                            </SlideLink>
                         </Button>
                     )}
                 </div>

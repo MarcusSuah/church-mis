@@ -23,6 +23,7 @@ body { background: #fbf7ec; font-family: 'Garamond', DejaVu Serif, serif; color:
 .logo { position: absolute; left: 391pt; top: 412pt; width: 60pt; height: 60pt; }
 </style></head>
 <body>
+@include('pdf.certificates._watermark')
 <div class="b1"></div><div class="b2"></div><div class="b3"></div>
 <img class="abs" src="{{ $A::laurel() }}" style="left:150pt;top:180pt;width:70pt">
 <img class="abs" src="{{ $A::laurel(true) }}" style="right:150pt;top:180pt;width:70pt">

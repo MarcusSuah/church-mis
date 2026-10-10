@@ -16,13 +16,15 @@ test('records get a unique slug from their title or name', function () {
         ->and($member->slug)->toBe('grace-osei');
 });
 
-test('a slug stays the same when the title is edited, so shared links keep working', function () {
-    $event = Event::create(['title' => 'Youth Rally', 'start_date' => now()->addWeek()]);
-    $event->update(['title' => 'Youth Rally 2026']);
+test('the slug follows the title when it is edited, and id links still work', function () {
+    $event = Event::create(['title' => 'Youth Raly', 'start_date' => now()->addWeek(), 'is_public' => true]);
+    $event->update(['title' => 'Youth Rally']);
+    $event->update(['location' => 'Main hall']); // unrelated edits keep the slug
 
     expect($event->fresh()->slug)->toBe('youth-rally');
+    $this->get('/church/events/youth-rally')->assertOk();
+    $this->get("/church/events/{$event->id}")->assertOk();
 });
-
 test('public detail pages open by slug and listings link to them', function () {
     $event = Event::create(['title' => 'Harvest Thanksgiving', 'start_date' => now()->addDays(3), 'is_public' => true, 'status' => 'Upcoming']);
 

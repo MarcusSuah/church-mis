@@ -6,7 +6,7 @@ return [
     'email' => env('CHURCH_EMAIL', 'info@saintsimonbaptistchurch.org'),
     'phone' => env('CHURCH_PHONE'),
     'address' => env('CHURCH_ADDRESS'),
-        // Public website (all editable under System → Website).
+    // Public website (all editable under System → Website).
     'tagline' => 'Established in faith',
     'description' => 'A Christ-centred Baptist family committed to worship, discipleship and service.',
     'mission' => 'To make disciples of Jesus Christ through faithful worship, sound teaching, sincere fellowship and compassionate service.',
@@ -19,6 +19,15 @@ return [
     'service_sunday_worship' => 'Sundays, 10:00 AM',
     'service_bible_study' => 'Wednesdays, 6:00 PM',
     'service_prayer_meeting' => 'Fridays, 6:00 PM',
+    // About page: heading over "Our story" and up to three photos (uploaded under System → Website).
+    'about_heading' => 'A heritage of faith',
+    'about_image_1' => null,
+    'about_image_2' => null,
+    'about_image_3' => null,
+    'about_caption_1' => null,
+    'about_caption_2' => null,
+    'about_caption_3' => null,
+    'contact_intro' => 'We would love to hear from you. Send us a message and the church office will reply by email.',
     // Default currency (USD or LRD). Admins can change it under Church Settings.
     'currency' => env('CHURCH_CURRENCY', 'USD'),
     // How many Liberian dollars make one US dollar (editable in Church Settings).

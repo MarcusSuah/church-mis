@@ -3,11 +3,13 @@
 namespace App\Models;
 
 use App\Enums\NotificationType;
+use App\Enums\Role;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Support\Facades\DB;
 
 /**
  * In-app notifications. Who sees one is decided by recipient_type:
@@ -51,7 +53,12 @@ class Notification extends Model
         $memberOnly = $user->isMemberOnly();
         $memberId = Member::where('user_id', $user->id)->value('id');
         $roles = $user->getRoleNames()->all();
-        $permissions = $user->getAllPermissions()->pluck('name')->all();
+        // The Superadmin passes every check through Gate::before and holds no explicit
+        // permissions, so give it every permission here too, or permission-targeted
+        // alerts (expenses to approve, suspicious sign-ins, pastoral cases) never reach it.
+        $permissions = $user->hasRole(Role::SUPERADMIN->value)
+            ? Permission::pluck('name')->all()
+            : $user->getAllPermissions()->pluck('name')->all();
 
         return $query->where('is_sent', true)->where(function (Builder $q) use ($memberOnly, $memberId, $roles, $permissions) {
             $q->where('recipient_type', 'all')
@@ -72,7 +79,7 @@ class Notification extends Model
     public function scopeWithReadState(Builder $query, User $user): Builder
     {
         return $query->addSelect([
-            'is_read_by_me' => \Illuminate\Support\Facades\DB::table('notification_reads')
+            'is_read_by_me' => DB::table('notification_reads')
                 ->selectRaw('count(*)')
                 ->whereColumn('notification_reads.notification_id', 'notifications.id')
                 ->where('notification_reads.user_id', $user->id),

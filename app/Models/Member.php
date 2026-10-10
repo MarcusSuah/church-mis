@@ -189,9 +189,14 @@ class Member extends Model
     }
 
     /** Members who came in through a registration form (public or portal). */
+    /**
+     * The review queue: anyone who signed up through a registration form
+     * (has a reg_ref), plus every member still awaiting review however they
+     * were added, so the queue matches the "pending members" sidebar badge.
+     */
     public function scopeRegistrations(Builder $query): Builder
     {
-        return $query->whereNotNull('reg_ref');
+        return $query->where(fn (Builder $q) => $q->whereNotNull('reg_ref')->orWhereIn('status', self::AWAITING_REVIEW));
     }
 
     public function getInitialsAttribute(): string

@@ -6,6 +6,7 @@ use App\Enums\Role as RoleEnum;
 use App\Models\Permission;
 use App\Models\Role;
 use Illuminate\Database\Seeder;
+use Spatie\Permission\PermissionRegistrar;
 
 class RolePermissionSeeder extends Seeder
 {
@@ -221,6 +222,12 @@ class RolePermissionSeeder extends Seeder
         'Notifications' => [
             'notifications.create' => 'Send, edit and delete notifications',
         ],
+
+        'Website' => [
+            'website.manage' => 'Edit the public website: text, hero slides, beliefs and About images',
+            'messages.view' => 'Read messages sent from the website contact form',
+            'messages.respond' => 'Reply to, close and delete website contact messages',
+        ],
     ];
 
     /**
@@ -228,7 +235,7 @@ class RolePermissionSeeder extends Seeder
      */
     public function run(): void
     {
-        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         foreach ($this->permissions as $module => $items) {
             foreach ($items as $name => $description) {
@@ -266,6 +273,7 @@ class RolePermissionSeeder extends Seeder
             RoleEnum::ADMIN->value
         )->first()?->syncPermissions([
             'dashboard.view',
+            'website.manage', 'messages.view', 'messages.respond',
             'notifications.create',
             'certificates.view',
             'certificates.approve',

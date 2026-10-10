@@ -9,6 +9,7 @@
     .r:last-child { page-break-after: auto; }
     .church { font-size: 16px; font-weight: bold; color: #1e3a5f; }
     .muted { color: #6b7280; }
+    .tagline { font-style: italic; color: #8a6d12; font-size: 10px; }
     h2 { font-size: 13px; letter-spacing: 2px; text-transform: uppercase; color: #8a6d12; margin: 6px 0 14px; }
     table { width: 100%; border-collapse: collapse; }
     td { padding: 5px 0; border-bottom: 1px solid #f3f4f6; }
@@ -18,10 +19,12 @@
 </style>
 </head>
 <body>
+@php($logo = \App\Support\ChurchLogo::dataUri())
 @foreach ($items as $i)
     <div class="r">
         <table><tr>
-            <td style="border:0"><div class="church">{{ $church['name'] ?? '' }}</div><div class="muted">{{ collect([$church['address'] ?? null, $church['phone'] ?? null, $church['email'] ?? null])->filter()->implode(' · ') }}</div></td>
+            @if ($logo)<td style="border:0; width: 58pt;"><img src="{{ $logo }}" alt="" style="width: 50pt;"></td>@endif
+            <td style="border:0"><div class="church">{{ $church['name'] ?? '' }}</div>@if (! empty($church['tagline']))<div class="tagline">{{ $church['tagline'] }}</div>@endif<div class="muted">{{ collect([$church['address'] ?? null, $church['phone'] ?? null, $church['email'] ?? null])->filter()->implode(' · ') }}</div></td>
             <td style="border:0; text-align:right"><div class="muted">Receipt No.</div><div style="font-weight:bold">{{ $i['receipt'] }}</div></td>
         </tr></table>
         <h2>Official Receipt</h2>

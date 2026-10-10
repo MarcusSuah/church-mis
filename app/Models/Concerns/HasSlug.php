@@ -9,9 +9,9 @@ use Illuminate\Support\Str;
 /**
  * Gives a model a unique, URL-friendly `slug` built from its title or name.
  *
- *  - The slug is created when the record is first saved, and filled in later
- *    for older records that have none. It does not change when the title is
- *    edited, so shared links keep working.
+ *  - The slug is created when the record is first saved, and follows the
+ *    title or name when it is edited (fixing a typo fixes the URL). Older
+ *    links that use the record id keep working.
  *  - Duplicates get a numeric suffix: "youth-ministry", "youth-ministry-2".
  *  - Route model binding accepts the slug or, for older links, the id.
  *
@@ -25,7 +25,14 @@ trait HasSlug
     public static function bootHasSlug(): void
     {
         static::saving(function (self $model): void {
-            if (blank($model->getAttribute('slug'))) {
+            $current = (string) $model->getAttribute('slug');
+            $base = Str::slug($model->slugSource());
+
+            // New record, or the title/name changed so the slug no longer matches it
+            // ("youth-ministry" or "youth-ministry-2" both still match "Youth Ministry").
+            $stale = $base !== '' && ! preg_match('/^'.preg_quote(Str::limit($base, 180, ''), '/').'(-\d+)?$/', $current);
+
+            if ($current === '' || $stale) {
                 $model->setAttribute('slug', static::uniqueSlug($model->slugSource(), $model->getKey()));
             }
         });

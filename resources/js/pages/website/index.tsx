@@ -315,6 +315,60 @@ function ContentForm({ content }: { content: Record<string, string | null> }) {
                     phone, email and logo are edited in Church Settings.
                 </p>
             </div>
+            <div>
+                <p className="section-header mb-3">About page</p>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    {text(
+                        'about_heading',
+                        'Heading above "Our story"',
+                        0,
+                        'A heritage of faith',
+                    )}
+                </div>
+                <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+                    {[1, 2, 3].map((n) => (
+                        <div key={n} className="space-y-2">
+                            <ImageUploadField
+                                label={`Photo ${n}${n === 1 ? ' (shown largest)' : ''}`}
+                                value={form.data[`about_image_${n}`]}
+                                onChange={(url) =>
+                                    form.setData(`about_image_${n}`, url)
+                                }
+                                variant="banner"
+                            />
+                            <input
+                                className={inputCls}
+                                value={form.data[`about_caption_${n}`] ?? ''}
+                                onChange={(e) =>
+                                    form.setData(
+                                        `about_caption_${n}`,
+                                        e.target.value,
+                                    )
+                                }
+                                placeholder="Caption (optional)"
+                                maxLength={120}
+                            />
+                            {form.errors[`about_image_${n}`] && (
+                                <p className="error-text">
+                                    {form.errors[`about_image_${n}`]}
+                                </p>
+                            )}
+                        </div>
+                    ))}
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                    Photos appear on the About page in this order. Remove a
+                    photo to hide it.
+                </p>
+            </div>
+            <div>
+                <p className="section-header mb-3">Contact page</p>
+                {text(
+                    'contact_intro',
+                    'Introduction under the "Contact us" heading',
+                    2,
+                )}
+            </div>
             <div className="flex justify-end">
                 <SaveButton
                     saving={form.processing}

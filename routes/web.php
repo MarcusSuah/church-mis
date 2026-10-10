@@ -39,6 +39,7 @@ use App\Http\Controllers\Site\PublicSiteController;
 use App\Http\Controllers\System\ActivityController;
 use App\Http\Controllers\System\AuditLogController;
 use App\Http\Controllers\System\ChurchSettingsController;
+use App\Http\Controllers\System\ContactMessageController;
 use App\Http\Controllers\System\NotificationController;
 use App\Http\Controllers\System\UploadController;
 use App\Http\Controllers\System\WebsiteController;
@@ -56,6 +57,7 @@ Route::controller(PublicSiteController::class)->group(function () {
     Route::get('/', 'home')->name('home');
     Route::get('about', 'about')->name('site.about');
     Route::get('contact', 'contact')->name('site.contact');
+    Route::post('contact', 'sendMessage')->middleware('throttle:public-forms')->name('site.contact.send');
     Route::prefix('church')->name('site.')->group(function () {
         Route::get('events', 'events')->name('events');
         Route::get('events/{event}', 'showEvent')->name('events.show');
@@ -69,6 +71,16 @@ Route::controller(PublicSiteController::class)->group(function () {
         Route::get('departments/{department}', 'showDepartment')->name('departments.show');
         Route::get('leadership', 'leadership')->name('leadership');
         Route::get('leadership/{leader}', 'showLeader')->name('leadership.show');
+    });
+});
+// System → Messages: inbox for the website contact form.
+Route::middleware(['auth', 'verified', 'permission:messages.view'])->prefix('messages')->name('messages.')->group(function () {
+    Route::get('/', [ContactMessageController::class, 'index'])->name('index');
+    Route::post('{message}/read', [ContactMessageController::class, 'markRead'])->name('read');
+    Route::middleware('permission:messages.respond')->group(function () {
+        Route::post('{message}/reply', [ContactMessageController::class, 'reply'])->middleware('throttle:30,1')->name('reply');
+        Route::patch('{message}/status', [ContactMessageController::class, 'updateStatus'])->name('status');
+        Route::delete('{message}', [ContactMessageController::class, 'destroy'])->name('destroy');
     });
 });
 Route::middleware(['auth', 'verified', 'permission:website.manage'])->prefix('website-content')->name('website.')->group(function () {

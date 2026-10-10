@@ -34,6 +34,24 @@ final class StatsCache
         return Cache::remember("stats:{$model}:v{$version}:{$money}:{$key}", self::TTL_SECONDS, $compute);
     }
 
+    /**
+     * Like remember(), for figures built from several models (e.g. tithes +
+     * offerings + donations): a change to any of them refreshes the value.
+     *
+     * @template TValue
+     *
+     * @param  list<class-string>  $models
+     * @param  Closure(): TValue  $compute
+     * @return TValue
+     */
+    public static function rememberFor(array $models, string $key, Closure $compute): mixed
+    {
+        $versions = implode('.', array_map(fn (string $model) => (int) Cache::get(self::versionKey($model), 0), $models));
+        $money = Money::base().':'.Money::rate();
+
+        return Cache::remember('stats:'.md5(implode('|', $models)).":v{$versions}:{$money}:{$key}", self::TTL_SECONDS, $compute);
+    }
+
     /** @param  class-string  $model */
     public static function flush(string $model): void
     {

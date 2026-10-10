@@ -4,11 +4,16 @@ namespace App\Http\Middleware;
 
 use App\Enums\Role as RoleEnum;
 use App\Http\Controllers\System\NotificationController;
+use App\Models\ContactMessage;
+use App\Models\DocumentRequest;
 use App\Models\Member;
 use App\Models\Notification;
 use App\Models\Permission;
 use App\Models\PrayerRequest;
+use App\Support\Birthdays;
+use App\Support\Money;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -49,15 +54,15 @@ class HandleInertiaRequests extends Middleware
 
             // Sidebar badge on Certificates: document requests waiting for approval.
             'pendingDocumentCount' => fn () => $user?->can('certificates.view')
-                ? \App\Models\DocumentRequest::where('status', 'Pending')->count()
+                ? DocumentRequest::where('status', 'Pending')->count()
                 : null,
 
             'church' => [
                 'name' => config('church.name'),
                 'short_name' => config('church.short_name'),
-                'currency' => \App\Support\Money::base(),
-                'secondary_currency' => \App\Support\Money::other(),
-                'exchange_rate' => \App\Support\Money::rate(),
+                'currency' => Money::base(),
+                'secondary_currency' => Money::other(),
+                'exchange_rate' => Money::rate(),
                 'address' => config('church.address'),
                 'email' => config('church.email'),
                 'phone' => config('church.phone'),
@@ -80,7 +85,11 @@ class HandleInertiaRequests extends Middleware
             // Sidebar badge on Prayer Requests (was hard-coded to 12).
             // Sidebar badge on Birthdays.
             'birthdaysTodayCount' => fn () => $user?->can('birthdays.view')
-                ? \Illuminate\Support\Facades\Cache::remember('birthdays-today:'.now()->toDateString(), 600, fn () => \App\Support\Birthdays::upcoming(0)->count())
+                ? Cache::remember('birthdays-today:'.now()->toDateString(), 600, fn () => Birthdays::upcoming(0)->count())
+                : null,
+            // Sidebar badge on Messages: website contact messages nobody has opened yet.
+            'newMessagesCount' => fn () => $user?->can('messages.view')
+                ? ContactMessage::where('status', 'new')->count()
                 : null,
             'activePrayerCount' => fn () => $user?->can('prayer-requests.view')
                 ? PrayerRequest::where('status', 'Active')->count()

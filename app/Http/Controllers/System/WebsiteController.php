@@ -17,6 +17,8 @@ class WebsiteController extends Controller
     private const TEXT_KEYS = [
         'tagline', 'description', 'mission', 'vision', 'story', 'pastor_message', 'city', 'country',
         'service_sunday_school', 'service_sunday_worship', 'service_bible_study', 'service_prayer_meeting',
+        'about_heading', 'about_image_1', 'about_image_2', 'about_image_3',
+        'about_caption_1', 'about_caption_2', 'about_caption_3', 'contact_intro',
     ];
 
     public function index(): Response
@@ -43,6 +45,14 @@ class WebsiteController extends Controller
             'service_sunday_worship' => ['nullable', 'string', 'max:120'],
             'service_bible_study' => ['nullable', 'string', 'max:120'],
             'service_prayer_meeting' => ['nullable', 'string', 'max:120'],
+            'about_heading' => ['nullable', 'string', 'max:120'],
+            'about_image_1' => ['nullable', 'url:http,https', 'max:500'],
+            'about_image_2' => ['nullable', 'url:http,https', 'max:500'],
+            'about_image_3' => ['nullable', 'url:http,https', 'max:500'],
+            'about_caption_1' => ['nullable', 'string', 'max:120'],
+            'about_caption_2' => ['nullable', 'string', 'max:120'],
+            'about_caption_3' => ['nullable', 'string', 'max:120'],
+            'contact_intro' => ['nullable', 'string', 'max:300'],
         ]);
         ChurchSettings::save($data);
 

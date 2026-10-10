@@ -6,13 +6,17 @@ use App\Http\Controllers\Controller;
 use App\Models\Announcement;
 use App\Models\Belief;
 use App\Models\ChurchLeadership;
+use App\Models\ContactMessage;
 use App\Models\Department;
 use App\Models\Event;
 use App\Models\HeroSlide;
 use App\Models\Ministry;
 use App\Models\Sermon;
 use App\Support\ChurchSettings;
+use App\Support\Notifier;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -50,6 +54,30 @@ class PublicSiteController extends Controller
     public function contact(): Response
     {
         return $this->page('contact');
+    }
+
+    /**
+     * Contact form. Rate-limited (public-forms); the hidden "website" field
+     * catches bots that fill every input. Staff who can read messages are notified.
+     */
+    public function sendMessage(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+            'email' => ['required', 'email', 'max:190'],
+            'phone' => ['nullable', 'string', 'max:40'],
+            'subject' => ['required', 'string', 'max:150'],
+            'message' => ['required', 'string', 'min:5', 'max:5000'],
+            'website' => ['prohibited'],
+        ]);
+
+        $message = ContactMessage::create([...$data, 'ip_address' => $request->ip()]);
+
+        Notifier::permission('messages.view', '✉️ New website message', "{$message->name}: {$message->subject}", 'info', '/messages');
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Thank you — your message has been sent. The church office will reply by email.']);
+
+        return back();
     }
 
     public function events(): Response

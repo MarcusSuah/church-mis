@@ -19,15 +19,15 @@ body { background: #ffffff; font-family: 'Garamond', DejaVu Sans, sans-serif; co
 .sign .n { border-top: 2pt solid #1e3a8a; padding-top: 4pt; font-family: 'Cinzel', serif; font-size: 11pt; color: #1e3a8a; }
 .sign .r { font-size: 10pt; color: #374151; }
 .meta { top: 532pt; font-size: 8pt; color: #6b7280; }
-.logo { position: absolute; left: 286pt; top: 46pt; width: 36pt; height: 36pt; }
+.logo { position: absolute; left: 391pt; top: 426pt; width: 60pt; }
 </style></head>
 <body>
 <div class="card"></div>
+@include('pdf.certificates._watermark')
 <img class="abs" src="{{ $A::sweep() }}" style="right:18pt;top:18pt;width:170pt">
 <img class="abs" src="{{ $A::sweep(true) }}" style="left:18pt;bottom:18pt;width:170pt">
 <div class="line"></div>
 <img class="abs" src="{{ $A::seal() }}" style="left:62pt;top:66pt;width:84pt">
-@if ($logo)<img class="logo" src="{{ $logo }}">@endif
 
 <div class="center church">{{ strtoupper($church['name'] ?? '') }}</div>
 <div class="center kicker">{{ strtoupper($c['kicker'] === 'Baptismal' ? 'Certificate of' : $c['kicker']) }}</div>
@@ -39,7 +39,8 @@ body { background: #ffffff; font-family: 'Garamond', DejaVu Sans, sans-serif; co
 <div class="abs verse">{{ $c['verse'] }}</div>
 <div class="center award">Awarded this {{ $dayOrdinal }} day of {{ $monthYear }}</div>
 
-<img class="abs" src="{{ $A::goldCross() }}" style="left:404pt;top:430pt;width:34pt">
+{{-- The church seal sits between the signatures; without a logo, a gold cross. --}}
+@if ($logo)<img class="logo" src="{{ $logo }}">@else<img class="abs" src="{{ $A::goldCross() }}" style="left:404pt;top:430pt;width:34pt">@endif
 <div class="sign" style="left:150pt"><div class="n">{{ $signers[0]['name'] }}</div><div class="r">{{ $signers[0]['role'] }}</div></div>
 <div class="sign" style="right:150pt"><div class="n">{{ $signers[1]['name'] }}</div><div class="r">{{ $signers[1]['role'] }}</div></div>
 <div class="center meta">Certificate No. {{ $number }}@if ($memberId) &nbsp;·&nbsp; Member ID {{ $memberId }}@endif @if ($detailLine) &nbsp;·&nbsp; {{ $detailLine }}@endif</div>

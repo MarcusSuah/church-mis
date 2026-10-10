@@ -4,22 +4,34 @@ namespace App\Providers;
 
 use App\Enums\Role as RoleEnum;
 use App\Models\Member;
+use App\Models\Permission;
+use App\Models\Role;
 use App\Models\User;
 use App\Models\UserActivity;
+use App\Observers\AuditObserver;
+use App\Observers\NotifyObserver;
+use App\Policies\MemberPolicy;
+use App\Policies\UserPolicy;
 use App\Services\ActivityLogger;
+use App\Support\ChurchSettings;
+use App\Support\Notifier;
+use App\Support\SessionLimiter;
+use Carbon\CarbonImmutable;
 use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
 use Illuminate\Auth\Events\PasswordReset;
-use Illuminate\Support\Facades\Event;
-use App\Policies\MemberPolicy;
-use App\Policies\UserPolicy;
-use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use Spatie\Permission\Events\PermissionAttachedEvent;
+use Spatie\Permission\Events\PermissionDetachedEvent;
+use Spatie\Permission\Events\RoleAttachedEvent;
+use Spatie\Permission\Events\RoleDetachedEvent;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -33,7 +45,7 @@ class AppServiceProvider extends ServiceProvider
         $this->configureDefaults();
 
         // Church profile + currency settings saved by the admin override config('church.*').
-        \App\Support\ChurchSettings::apply();
+        ChurchSettings::apply();
 
         Gate::policy(User::class, UserPolicy::class);
         Gate::policy(Member::class, MemberPolicy::class);
@@ -45,18 +57,43 @@ class AppServiceProvider extends ServiceProvider
         });
 
         // Audit trail for church records.
-        foreach (array_keys(\App\Observers\AuditObserver::MODULES) as $model) {
+        foreach (array_keys(AuditObserver::MODULES) as $model) {
             if (class_exists($model)) {
-                $model::observe(\App\Observers\AuditObserver::class);
+                $model::observe(AuditObserver::class);
             }
         }
 
         // In-app notifications for every module.
-        foreach (\App\Observers\NotifyObserver::MODELS as $model) {
-            $model::observe(\App\Observers\NotifyObserver::class);
+        foreach (NotifyObserver::MODELS as $model) {
+            $model::observe(NotifyObserver::class);
         }
 
         $this->trackAuthentication();
+        $this->auditRoleChanges();
+    }
+
+    /** Role and permission grants/revokes → audit log (Security module). */
+    private function auditRoleChanges(): void
+    {
+        $names = function (mixed $items, string $class): string {
+            $ids = collect(is_iterable($items) ? $items : [$items])->map(fn ($i) => $i instanceof Model ? $i->getKey() : $i)->all();
+
+            return $class::whereIn('id', $ids)->pluck('name')->implode(', ');
+        };
+        $who = fn (Model $m) => $m->getAttribute('name') ?? $m->getAttribute('email') ?? class_basename($m).' '.$m->getKey();
+
+        // Role changes on accounts are audited and also alert the people who manage users.
+        $roleChange = function ($e, string $verb) use ($names, $who): void {
+            $message = 'Role '.$names($e->rolesOrIds, Role::class)." {$verb} ".$who($e->model);
+            AuditObserver::note('UPDATE', 'Security', $message, 'model_has_roles');
+            if ($e->model instanceof User && auth()->check()) {
+                Notifier::permission('users.view', '🔐 Account role changed', $message.' by '.auth()->user()->name.'.', 'warning', '/admin/users');
+            }
+        };
+        Event::listen(RoleAttachedEvent::class, fn ($e) => $roleChange($e, 'given to'));
+        Event::listen(RoleDetachedEvent::class, fn ($e) => $roleChange($e, 'removed from'));
+        Event::listen(PermissionAttachedEvent::class, fn ($e) => AuditObserver::note('UPDATE', 'Security', 'Permission '.$names($e->permissionsOrIds, Permission::class).' given to '.$who($e->model), 'role_has_permissions'));
+        Event::listen(PermissionDetachedEvent::class, fn ($e) => AuditObserver::note('UPDATE', 'Security', 'Permission '.$names($e->permissionsOrIds, Permission::class).' removed from '.$who($e->model), 'role_has_permissions'));
     }
 
     /** Sign-ins, sign-outs, failed attempts and password resets → activity log. */
@@ -65,7 +102,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(Login::class, function (Login $e) {
             $req = request();
             $e->user->forceFill(['last_login_at' => now(), 'last_login_ip' => $req->ip()])->saveQuietly();
-            \App\Support\SessionLimiter::enforce($e->user, $req);
+            SessionLimiter::enforce($e->user, $req);
             ActivityLogger::log($req, 'login', 'Signed in', $e->user);
         });
 
@@ -83,7 +120,7 @@ class AppServiceProvider extends ServiceProvider
             $suspicious = $recent >= (int) config('church.suspicious_failed_logins', 5);
 
             if ($recent === (int) config('church.suspicious_failed_logins', 5)) {
-                \App\Support\Notifier::permission('activity.view', '🔒 Suspicious sign-in activity', "{$recent} failed sign-ins in 15 minutes from IP {$req->ip()} (last tried: {$email}). Review it in the Activity Log.", 'urgent', '/activity-logs?tab=suspicious');
+                Notifier::permission('activity.view', '🔒 Suspicious sign-in activity', "{$recent} failed sign-ins in 15 minutes from IP {$req->ip()} (last tried: {$email}). Review it in the Activity Log.", 'urgent', '/activity-logs?tab=suspicious');
             }
             ActivityLogger::log($req, 'login_failed',
                 "Failed sign-in for {$email}".($suspicious ? " ({$recent} failures in 15 min from this IP)" : ''),
