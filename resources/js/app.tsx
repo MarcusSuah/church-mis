@@ -1,4 +1,5 @@
 import { createInertiaApp } from '@inertiajs/react';
+import GlobalLoader from '@/components/global-loader';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { initializeTheme } from '@/hooks/use-appearance';
@@ -15,6 +16,7 @@ void createInertiaApp({
             case name === 'welcome':
             case name === 'public-member-registration':
             case name === 'auth/change-password':
+            case name === 'auth/lock-screen':
             case name === 'error':
             case name.startsWith('site/'):
                 return null;
@@ -32,11 +34,14 @@ void createInertiaApp({
             <TooltipProvider delayDuration={0}>
                 {app}
                 <Toaster />
+                <GlobalLoader />
             </TooltipProvider>
         );
     },
     progress: {
-        color: '#4B5563',
+        // The thin top bar; GlobalLoader adds a clearer indicator for slower pages.
+        color: '#c9a227',
+        delay: 150,
     },
 });
 

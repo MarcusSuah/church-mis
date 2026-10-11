@@ -7,8 +7,10 @@ use App\Http\Controllers\Controller;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\Audit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -36,7 +38,7 @@ class RoleController extends Controller
         $roles = $query
             ->paginate($perPage)
             ->withQueryString()
-            ->through(fn(Role $role) => $this->transform($role));
+            ->through(fn (Role $role) => $this->transform($role));
 
         $permissions = Permission::query()
             ->orderBy('module')
@@ -52,13 +54,19 @@ class RoleController extends Controller
             ],
         ]);
     }
+
     public function store(Request $request): RedirectResponse
     {
+        Gate::authorize('create', Role::class);
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255', Rule::unique('roles', 'name')],
             'permissions' => ['array'],
             'permissions.*' => ['integer', 'exists:permissions,id'],
         ]);
+
+        $permissionNames = $this->permissionNames($validated['permissions'] ?? []);
+        $this->ensureCanGrant($permissionNames);
 
         $role = Role::create([
             'name' => $validated['name'],
@@ -67,11 +75,16 @@ class RoleController extends Controller
 
         $role->syncPermissions($validated['permissions'] ?? []);
 
+        Audit::record('create', 'roles', "Created role {$role->name}", null, ['name' => $role->name, 'permissions' => $permissionNames]);
+
         return back();
     }
 
     public function update(Request $request, Role $role): RedirectResponse
     {
+        // F08: not your own role, and Superadmin/Admin only by the Superadmin.
+        Gate::authorize('update', $role);
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255', Rule::unique('roles', 'name')->ignore($role->id)],
             'permissions' => ['array'],
@@ -84,14 +97,28 @@ class RoleController extends Controller
             ]);
         }
 
+        $oldNames = $role->permissions->pluck('name')->sort()->values()->all();
+        $newNames = collect($this->permissionNames($validated['permissions'] ?? []))->sort()->values()->all();
+        // Ceiling: every permission being added must be one the editor holds.
+        $this->ensureCanGrant(array_values(array_diff($newNames, $oldNames)));
+
+        $oldName = $role->name;
         $role->update(['name' => $validated['name']]);
         $role->syncPermissions($validated['permissions'] ?? []);
+
+        if ($oldName !== $role->name || $oldNames !== $newNames) {
+            Audit::record('update', 'roles', "Updated role {$role->name}",
+                ['name' => $oldName, 'permissions' => $oldNames],
+                ['name' => $role->name, 'permissions' => $newNames]);
+        }
 
         return back();
     }
 
     public function destroy(Role $role): RedirectResponse
     {
+        Gate::authorize('delete', $role);
+
         if ($role->isProtected()) {
             throw ValidationException::withMessages([
                 'role' => 'This role cannot be deleted.',
@@ -106,7 +133,28 @@ class RoleController extends Controller
 
         $role->delete();
 
+        Audit::record('delete', 'roles', "Deleted role {$role->name}", ['name' => $role->name]);
+
         return back();
+    }
+
+    /**
+     * @param  list<int>  $ids
+     * @return list<string>
+     */
+    private function permissionNames(array $ids): array
+    {
+        return Permission::query()->whereIn('id', $ids)->pluck('name')->all();
+    }
+
+    /** @param  list<string>  $permissionNames */
+    private function ensureCanGrant(array $permissionNames): void
+    {
+        if (! Gate::allows('grant', [Role::class, $permissionNames])) {
+            throw ValidationException::withMessages([
+                'permissions' => 'You can only give a role permissions that you have yourself.',
+            ]);
+        }
     }
 
     private function transform(Role $role): array

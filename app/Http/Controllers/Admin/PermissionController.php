@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Permission;
+use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -76,6 +77,13 @@ class PermissionController extends Controller
             'description' => ['nullable', 'string', 'max:1000'],
         ]);
 
+        // F08: the application checks these names in code; renaming one breaks access.
+        if ($validated['name'] !== $permission->name && $this->isSystemPermission($permission)) {
+            throw ValidationException::withMessages([
+                'name' => 'This permission is used by the application and cannot be renamed.',
+            ]);
+        }
+
         $permission->update($validated);
 
         return back();
@@ -83,6 +91,12 @@ class PermissionController extends Controller
 
     public function destroy(Permission $permission): RedirectResponse
     {
+        if ($this->isSystemPermission($permission)) {
+            throw ValidationException::withMessages([
+                'permission' => 'This permission is used by the application and cannot be deleted.',
+            ]);
+        }
+
         if ($permission->roles()->exists()) {
             throw ValidationException::withMessages([
                 'permission' => 'This permission is still assigned to one or more roles.',
@@ -92,6 +106,11 @@ class PermissionController extends Controller
         $permission->delete();
 
         return back();
+    }
+
+    private function isSystemPermission(Permission $permission): bool
+    {
+        return in_array($permission->name, RolePermissionSeeder::systemPermissions(), true);
     }
 
     private function transform(Permission $permission): array

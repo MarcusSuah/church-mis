@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { PdfViewerHost } from '@/components/ssbcms/PdfViewer';
 import Sidebar from '@/components/ssbcms/Sidebar';
 import Topbar from '@/components/ssbcms/Topbar';
+import { useScreenLock } from '@/hooks/use-screen-lock';
 import type { AppLayoutProps, SharedData } from '@/types';
 
 /**
@@ -29,6 +30,9 @@ export default function AppSidebarLayout({ children }: AppLayoutProps) {
     const isMobile = useBelowLg();
     const [collapsed, setCollapsed] = useState(!props.sidebarOpen);
     const [mobileOpen, setMobileOpen] = useState(false);
+
+    // Lock the screen after the idle time set in Church Settings.
+    useScreenLock(props.screenLock?.minutes ?? 0);
 
     // Close the mobile drawer after navigating.
     useEffect(() => router.on('navigate', () => setMobileOpen(false)), []);

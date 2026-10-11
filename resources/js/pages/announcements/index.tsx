@@ -462,7 +462,7 @@ function AnnouncementModal({
                         placeholder="Announcement content..."
                     />
                 </Field>
-                <Field label="Category">
+                <Field label="Category" error={form.errors.category}>
                     <select
                         className={inputCls}
                         value={form.data.category}
@@ -475,7 +475,7 @@ function AnnouncementModal({
                         ))}
                     </select>
                 </Field>
-                <Field label="Priority">
+                <Field label="Priority" error={form.errors.priority}>
                     <select
                         className={inputCls}
                         value={form.data.priority}
@@ -498,7 +498,7 @@ function AnnouncementModal({
                         placeholder="Defaults to you"
                     />
                 </Field>
-                <Field label="Target Audience">
+                <Field label="Target Audience" error={form.errors.target_audience}>
                     <select
                         className={inputCls}
                         value={form.data.target_audience}

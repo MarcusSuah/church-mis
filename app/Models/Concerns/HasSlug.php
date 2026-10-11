@@ -70,6 +70,18 @@ trait HasSlug
     }
 
     /**
+     * Match a slug, or the id for links made before slugs existed
+     * (e.g. ?department=youth-ministry on the staff pages).
+     *
+     * @param  Builder<static>  $query
+     */
+    public function scopeWhereSlugOrKey(Builder $query, string $value): Builder
+    {
+        return $query->where(fn (Builder $q) => $q->where($this->qualifyColumn('slug'), $value)
+            ->orWhere($this->getQualifiedKeyName(), $value));
+    }
+
+    /**
      * {model} route parameters resolve by slug first, then by id, so links
      * built before slugs existed still work.
      */

@@ -18,6 +18,7 @@ import {
     Users,
     X,
 } from 'lucide-react';
+import { PersonAvatar } from '@/components/site/person-card';
 import type { ReactNode } from 'react';
 import { useMemo, useState } from 'react';
 import ConfirmModal from '@/components/ssbcms/ConfirmModal';
@@ -38,6 +39,7 @@ import { useMemberOptionsSearch } from '@/hooks/use-member-options-search';
 
 type Ministry = {
     id: string;
+    slug: string | null;
     name: string;
     description: string | null;
     vision: string | null;
@@ -374,41 +376,36 @@ export default function Ministries({
                             {filtered.map((m) => (
                                 <div
                                     key={m.id}
-                                    className="group overflow-hidden rounded-xl border border-border bg-card transition-shadow hover:shadow-md"
+                                    className="group flex flex-col rounded-2xl border border-border bg-card shadow-sm transition hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-md"
                                 >
-                                    <button
-                                        type="button"
-                                        className="relative block w-full text-left"
-                                        onClick={() => go({ ministry: m.id })}
-                                    >
-                                        <Banner
-                                            m={m}
-                                            height="h-36"
-                                            iconSize={32}
-                                        />
-                                        <div className="absolute right-3 bottom-3 left-3 flex items-end justify-between">
-                                            <CategoryPill
-                                                category={m.category}
+                                    <div className="flex flex-1 flex-col p-5">
+                                        <div className="flex items-start gap-4">
+                                            <PersonAvatar
+                                                name={m.name}
+                                                image={m.banner_url}
                                             />
+                                            <div className="min-w-0 flex-1">
+                                                <h3
+                                                    className="cursor-pointer font-display text-lg leading-snug font-bold text-foreground transition-colors hover:text-accent"
+                                                    onClick={() =>
+                                                        go({ ministry: m.slug ?? m.id })
+                                                    }
+                                                >
+                                                    {m.name}
+                                                </h3>
+                                                <p className="mt-0.5 text-sm font-medium text-accent">
+                                                    {m.category}
+                                                </p>
+                                            </div>
                                             <span
-                                                className={`rounded-full px-2 py-0.5 text-xs font-medium ${m.is_active ? 'bg-white/90 text-success' : 'bg-white/90 text-muted-foreground'}`}
+                                                className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${m.is_active ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'}`}
                                             >
                                                 {m.is_active
                                                     ? 'Active'
                                                     : 'Inactive'}
                                             </span>
                                         </div>
-                                    </button>
-                                    <div className="p-4">
-                                        <h3
-                                            className="cursor-pointer font-semibold text-foreground transition-colors hover:text-primary"
-                                            onClick={() =>
-                                                go({ ministry: m.id })
-                                            }
-                                        >
-                                            {m.name}
-                                        </h3>
-                                        <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                                        <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
                                             {m.description}
                                         </p>
                                         <div className="mt-3 flex items-center gap-3">
@@ -442,7 +439,7 @@ export default function Ministries({
                                             <button
                                                 type="button"
                                                 onClick={() =>
-                                                    go({ ministry: m.id })
+                                                    go({ ministry: m.slug ?? m.id })
                                                 }
                                                 className="text-xs font-medium text-primary hover:underline"
                                             >
@@ -912,6 +909,9 @@ function MinistryModal({
                             </option>
                         ))}
                     </select>
+                    {form.errors.category && (
+                        <p className="error-text">{form.errors.category}</p>
+                    )}
                 </div>
                 <div>
                     <label className={label}>Description</label>

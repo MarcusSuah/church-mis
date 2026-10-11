@@ -2,6 +2,7 @@ import { Link, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import Icon from '@/components/ssbcms/AppIcon';
 import { usePermissions } from '@/hooks/use-permissions';
+import { lockScreenNow } from '@/hooks/use-screen-lock';
 import type { SharedData } from '@/types';
 
 type BadgeKey =
@@ -47,6 +48,20 @@ const STAFF_NAV: NavGroup[] = [
                 label: 'Website',
                 icon: 'GlobeAltIcon',
                 href: '/website-content',
+                permission: 'website.manage',
+            },
+            {
+                id: 'nav-site-pages',
+                label: 'Pages (Privacy & Terms)',
+                icon: 'DocumentTextIcon',
+                href: '/site-pages',
+                permission: 'website.manage',
+            },
+            {
+                id: 'nav-gallery',
+                label: 'Gallery',
+                icon: 'PhotoIcon',
+                href: '/gallery-albums',
                 permission: 'website.manage',
             },
             {
@@ -630,7 +645,29 @@ export default function Sidebar({
             </nav>
 
             {/* Bottom user section */}
-            <div className="border-t border-white/10 p-3">
+            <div className="space-y-1 border-t border-white/10 p-3">
+                {/* Home (the public website) and lock screen: the user stays signed in. */}
+                <a
+                    href="/"
+                    title={collapsed ? 'Home' : undefined}
+                    className={`nav-item text-white/70 hover:bg-white/10 hover:text-white ${collapsed ? 'justify-center px-2' : ''}`}
+                >
+                    <Icon name="HomeIcon" size={18} className="shrink-0" />
+                    {!collapsed && <span className="flex-1 truncate">Home</span>}
+                </a>
+                <button
+                    type="button"
+                    onClick={lockScreenNow}
+                    title={collapsed ? 'Lock screen' : undefined}
+                    className={`nav-item w-full text-white/70 hover:bg-white/10 hover:text-white ${collapsed ? 'justify-center px-2' : ''}`}
+                >
+                    <Icon name="LockClosedIcon" size={18} className="shrink-0" />
+                    {!collapsed && (
+                        <span className="flex-1 truncate text-left">
+                            Lock screen
+                        </span>
+                    )}
+                </button>
                 <Link
                     href="/member-portal"
                     className={`flex items-center gap-3 rounded-lg p-2 transition-colors duration-150 hover:bg-white/10 ${collapsed ? 'justify-center' : ''}`}

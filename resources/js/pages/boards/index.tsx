@@ -39,6 +39,7 @@ import { useMemberOptionsSearch } from '@/hooks/use-member-options-search';
 
 type Board = {
     id: string;
+    slug: string | null;
     name: string;
     description: string | null;
     mandate: string | null;
@@ -362,7 +363,7 @@ export default function Boards({
                                     <button
                                         type="button"
                                         className="relative block w-full text-left"
-                                        onClick={() => go({ board: b.id })}
+                                        onClick={() => go({ board: b.slug ?? b.id })}
                                     >
                                         <Banner b={b} iconSize={36} />
                                         <div className="absolute right-3 bottom-3 left-3 flex items-end justify-between">
@@ -379,7 +380,7 @@ export default function Boards({
                                     <div className="p-4">
                                         <h3
                                             className="cursor-pointer font-semibold text-foreground transition-colors hover:text-primary"
-                                            onClick={() => go({ board: b.id })}
+                                            onClick={() => go({ board: b.slug ?? b.id })}
                                         >
                                             {b.name}
                                         </h3>
@@ -419,7 +420,7 @@ export default function Boards({
                                             <button
                                                 type="button"
                                                 onClick={() =>
-                                                    go({ board: b.id })
+                                                    go({ board: b.slug ?? b.id })
                                                 }
                                                 className="text-xs font-medium text-primary hover:underline"
                                             >
@@ -998,6 +999,9 @@ function BoardModal({
                             <option key={t}>{t}</option>
                         ))}
                     </select>
+                    {form.errors.board_type && (
+                        <p className="error-text">{form.errors.board_type}</p>
+                    )}
                 </div>
                 <div>
                     <label className={label}>Description</label>

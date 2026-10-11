@@ -51,6 +51,7 @@ class RolePermissionSeeder extends Seeder
             'departments.create' => 'Create departments',
             'departments.update' => 'Edit departments',
             'departments.delete' => 'Delete departments',
+            'departments.manage-any' => 'Edit any department, not only the ones you lead',
         ],
 
         'Attendance' => [
@@ -65,6 +66,7 @@ class RolePermissionSeeder extends Seeder
             'ministries.create' => 'Create ministries',
             'ministries.update' => 'Edit ministries',
             'ministries.delete' => 'Delete ministries',
+            'ministries.manage-any' => 'Edit any ministry, not only the ones you lead',
         ],
 
         'Boards' => [
@@ -224,11 +226,23 @@ class RolePermissionSeeder extends Seeder
         ],
 
         'Website' => [
-            'website.manage' => 'Edit the public website: text, hero slides, beliefs and About images',
+            'website.manage' => 'Edit the public website (slides, beliefs, page text)',
             'messages.view' => 'Read messages sent from the website contact form',
             'messages.respond' => 'Reply to, close and delete website contact messages',
         ],
     ];
+
+    /**
+     * Every permission the application itself checks (routes, policies,
+     * controllers). These cannot be renamed or deleted from the admin
+     * screen, because that would silently switch a feature off (Phase 4).
+     *
+     * @return list<string>
+     */
+    public static function systemPermissions(): array
+    {
+        return collect((new static)->permissions)->flatMap(fn (array $items) => array_keys($items))->values()->all();
+    }
 
     /**
      * Run the database seeds.
@@ -273,7 +287,6 @@ class RolePermissionSeeder extends Seeder
             RoleEnum::ADMIN->value
         )->first()?->syncPermissions([
             'dashboard.view',
-            'website.manage', 'messages.view', 'messages.respond',
             'notifications.create',
             'certificates.view',
             'certificates.approve',
@@ -298,10 +311,13 @@ class RolePermissionSeeder extends Seeder
             'departments.create',
             'departments.update',
             'departments.delete',
+            'departments.manage-any',
             'ministries.view',
             'ministries.create',
             'ministries.update',
             'ministries.delete',
+            'ministries.manage-any',
+            'website.manage', 'messages.view', 'messages.respond',
             'boards.view',
             'boards.create',
             'boards.update',
@@ -395,9 +411,11 @@ class RolePermissionSeeder extends Seeder
             'departments.view',
             'departments.create',
             'departments.update',
+            'departments.manage-any',
             'ministries.view',
             'ministries.create',
             'ministries.update',
+            'ministries.manage-any',
             'attendance.view',
             'attendance.create',
             'attendance.update',
@@ -484,6 +502,8 @@ class RolePermissionSeeder extends Seeder
             'name',
             RoleEnum::DEPARTMENTLEADER->value
         )->first()?->syncPermissions([
+            // departments.update / ministries.update cover only the departments
+            // and ministries this person leads (no *.manage-any) — Phase 4, F08.
             'dashboard.view',
             'members.view',
             'departments.view',

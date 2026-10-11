@@ -7,9 +7,11 @@ use App\Models\Department;
 use App\Models\DepartmentActivity;
 use App\Models\DepartmentMember;
 use App\Models\Member;
+use App\Support\LeadershipScope;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -24,6 +26,14 @@ class DepartmentController extends Controller
     public function index(Request $request): Response
     {
         $user = $request->user();
+        // Leaders without departments.manage-any may only edit the groups they lead (F08).
+        $manageAny = $user->can('departments.manage-any');
+        $ledIds = $manageAny ? [] : LeadershipScope::departmentIds($user);
+        $inScope = fn (Department $x) => $manageAny || in_array($x->id, $ledIds, false);
+        $abilities = fn (Department $x) => [
+            'can_update' => $user->can('departments.update') && $inScope($x),
+            'can_delete' => $user->can('departments.delete') && $inScope($x),
+        ];
         $selectedId = $request->string('department')->toString() ?: null;
 
         $departments = Department::query()
@@ -31,14 +41,15 @@ class DepartmentController extends Controller
             ->withCount('memberships')
             ->orderBy('name')
             ->get()
-            ->map(fn (Department $d) => $this->present($d));
+            ->map(fn (Department $d) => [...$this->present($d), ...$abilities($d)]);
 
-        $selected = $selectedId ? Department::with('leader:id,first_name,last_name,photo_url')->withCount('memberships')->find($selectedId) : null;
+        $selected = $selectedId ? Department::with('leader:id,first_name,last_name,photo_url')->withCount('memberships')->whereSlugOrKey($selectedId)->first() : null;
 
         return Inertia::render('departments/index', [
             'departments' => $departments,
             'selected' => $selected ? [
                 ...$this->present($selected),
+                ...$abilities($selected),
                 'members' => $selected->memberships()
                     ->with('member:id,member_id,first_name,last_name,email,phone,photo_url,status')
                     ->get()
@@ -94,6 +105,8 @@ class DepartmentController extends Controller
 
     public function update(Request $request, Department $department): RedirectResponse
     {
+        Gate::authorize('update', $department);
+
         $data = $request->validate($this->rules($department));
         $oldName = $department->name;
 
@@ -112,6 +125,8 @@ class DepartmentController extends Controller
 
     public function destroy(Department $department): RedirectResponse
     {
+        Gate::authorize('delete', $department);
+
         DB::transaction(function () use ($department) {
             Member::where('department', $department->name)->update(['department' => null]);
             $department->delete();
@@ -124,6 +139,8 @@ class DepartmentController extends Controller
 
     public function addMember(Request $request, Department $department): RedirectResponse
     {
+        Gate::authorize('update', $department);
+
         $data = $request->validate([
             'member_id' => ['required', 'uuid', 'exists:members,id', Rule::unique('department_members')->where('department_id', $department->id)],
             'as_leader' => ['boolean'],
@@ -147,6 +164,8 @@ class DepartmentController extends Controller
 
     public function updateMember(Request $request, Department $department, DepartmentMember $departmentMember): RedirectResponse
     {
+        Gate::authorize('update', $department);
+
         abort_unless($departmentMember->department_id === $department->id, 404);
 
         $data = $request->validate(['role' => ['required', Rule::in(Department::ROLES)]]);
@@ -168,6 +187,8 @@ class DepartmentController extends Controller
     /** Make an existing department member (or any member — they get added) the leader. */
     public function setLeader(Request $request, Department $department): RedirectResponse
     {
+        Gate::authorize('update', $department);
+
         $data = $request->validate(['member_id' => ['required', 'uuid', 'exists:members,id']]);
         $member = Member::find($data['member_id']);
 
@@ -188,6 +209,8 @@ class DepartmentController extends Controller
 
     public function removeMember(Department $department, DepartmentMember $departmentMember): RedirectResponse
     {
+        Gate::authorize('update', $department);
+
         abort_unless($departmentMember->department_id === $department->id, 404);
 
         DB::transaction(function () use ($department, $departmentMember) {
@@ -205,6 +228,8 @@ class DepartmentController extends Controller
 
     public function storeActivity(Request $request, Department $department): RedirectResponse
     {
+        Gate::authorize('update', $department);
+
         $data = $request->validate([
             'title' => ['required', 'string', 'max:150'],
             'activity_type' => ['required', Rule::in(DepartmentActivity::TYPES)],
@@ -224,6 +249,8 @@ class DepartmentController extends Controller
 
     public function destroyActivity(Department $department, DepartmentActivity $activity): RedirectResponse
     {
+        Gate::authorize('update', $department);
+
         abort_unless($activity->department_id === $department->id, 404);
         $activity->delete();
 
@@ -260,6 +287,7 @@ class DepartmentController extends Controller
     {
         return [
             'id' => $d->id,
+            'slug' => $d->slug,
             'name' => $d->name,
             'description' => $d->description,
             'category' => $d->category,

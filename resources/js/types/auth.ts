@@ -24,6 +24,8 @@ export type SharedData = {
     name: string;
     auth: Auth;
     sidebarOpen: boolean;
+    /** Idle minutes before the screen locks (0 = off); null when signed out. */
+    screenLock?: { minutes: number } | null;
     pendingMembersCount?: number | null;
     activePrayerCount?: number | null;
     birthdaysTodayCount?: number | null;

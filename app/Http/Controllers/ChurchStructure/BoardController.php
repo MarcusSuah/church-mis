@@ -31,7 +31,7 @@ class BoardController extends Controller
             ->get()
             ->map(fn (Board $b) => $this->present($b));
 
-        $selected = $selectedId ? Board::with('chairperson:id,first_name,last_name,photo_url')->withCount('memberships')->find($selectedId) : null;
+        $selected = $selectedId ? Board::with('chairperson:id,first_name,last_name,photo_url')->withCount('memberships')->whereSlugOrKey($selectedId)->first() : null;
 
         return Inertia::render('boards/index', [
             'boards' => $boards,
@@ -203,6 +203,7 @@ class BoardController extends Controller
     {
         return [
             'id' => $b->id,
+            'slug' => $b->slug,
             'name' => $b->name,
             'description' => $b->description,
             'mandate' => $b->mandate,

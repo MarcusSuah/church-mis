@@ -24,6 +24,8 @@ trait MemberRequestRules
             'state' => ['nullable', 'string', 'max:100'],
             'country' => ['nullable', 'string', 'max:100'],
             'photo_url' => ['nullable', 'string', 'max:2048'],
+            // Photo uploaded from the registration-style form (same rules as the public form).
+            'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'department' => ['nullable', 'string', 'max:100'],
             'ministry' => ['nullable', 'string', 'max:100'],
             'status' => ['required', 'string', Rule::in(Member::STATUSES)],

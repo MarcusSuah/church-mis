@@ -1,4 +1,4 @@
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm } from "@inertiajs/react";
 import {
     Check,
     ChevronLeft,
@@ -8,18 +8,19 @@ import {
     Eye,
     Pencil,
     Search,
+    ShieldAlert,
     ShieldCheck,
     Trash2,
     UserCheck,
     UserX,
     X,
-} from 'lucide-react';
-import { type ChangeEvent, type FormEvent, useEffect, useState } from 'react';
-import { toast } from 'sonner';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Textarea } from '@/components/ui/textarea';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+} from "lucide-react";
+import { type ChangeEvent, type FormEvent, useEffect, useState } from "react";
+import { toast } from "sonner";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
     Dialog,
     DialogContent,
@@ -27,7 +28,7 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-} from '@/components/ui/dialog';
+} from "@/components/ui/dialog";
 import {
     Field,
     FieldContent,
@@ -35,17 +36,17 @@ import {
     FieldGroup,
     FieldLabel,
     FieldTitle,
-} from '@/components/ui/field';
-import { Switch } from '@/components/ui/switch';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+} from "@/components/ui/field";
+import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from '@/components/ui/select';
+} from "@/components/ui/select";
 import {
     Table,
     TableBody,
@@ -53,17 +54,18 @@ import {
     TableHead,
     TableHeader,
     TableRow,
-} from '@/components/ui/table';
+} from "@/components/ui/table";
 
-import { promiseAction } from '@/lib/promise-action';
-import { UserAvatar } from '@/components/user-avatar';
-import { UserStatusBadge } from '@/components/user-status-badge';
-import { ConfirmDialog } from '@/components/confirm-dialog';
-import admin from '@/routes/admin';
+import { promiseAction } from "@/lib/promise-action";
+import { UserAvatar } from "@/components/user-avatar";
+import { UserStatusBadge } from "@/components/user-status-badge";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import admin from "@/routes/admin";
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from "@/components/ui/checkbox";
 
-type UserStatus = 'pending' | 'approved' | 'rejected';
-type DisplayStatus = 'pending' | 'active' | 'inactive' | 'rejected';
+type UserStatus = "pending" | "approved" | "rejected";
+type DisplayStatus = "pending" | "active" | "inactive" | "rejected";
 
 interface Reviewer {
     id: number;
@@ -87,6 +89,18 @@ interface User {
     created_at: string | null;
     roles: { id: number; name: string }[];
     role: string | null;
+    /** Superadmin accounts can never be deleted. */
+    is_protected: boolean;
+    /** Server decides (Phase 4, F08): outranks the account and it isn't you. */
+    can_assign_roles: boolean;
+}
+
+interface AssignableRole {
+    id: number;
+    name: string;
+    label: string;
+    /** False when the role has permissions you don't have, or is Superadmin/Admin. */
+    assignable: boolean;
 }
 
 interface PaginatedUsers {
@@ -111,6 +125,7 @@ interface PaginatedUsers {
 
 interface Props {
     users: PaginatedUsers;
+    assignableRoles: AssignableRole[];
     filters: {
         search?: string;
         status?: string;
@@ -119,33 +134,60 @@ interface Props {
     };
 }
 
-export default function Index({ users, filters }: Props) {
-    const [search, setSearch] = useState(filters.search ?? '');
+export default function Index({ users, filters, assignableRoles = [] }: Props) {
+    const [search, setSearch] = useState(filters.search ?? "");
     const [editUser, setEditUser] = useState<User | null>(null);
     const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
     const [approveUser, setApproveUser] = useState<User | null>(null);
     const [rejectUser, setRejectUser] = useState<User | null>(null);
     const [deleteUser, setDeleteUser] = useState<User | null>(null);
     const [toggleTarget, setToggleTarget] = useState<User | null>(null);
+    const [rolesUser, setRolesUser] = useState<User | null>(null);
+    const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+    const [savingRoles, setSavingRoles] = useState(false);
+
+    const openRoles = (user: User) => {
+        setRolesUser(user);
+        setSelectedRoles(user.roles.map((r) => r.name));
+    };
+
+    const toggleRole = (name: string, on: boolean) =>
+        setSelectedRoles((current) => (on ? [...new Set([...current, name])] : current.filter((r) => r !== name)));
+
+    const saveRoles = () => {
+        if (!rolesUser) {
+            return;
+        }
+        setSavingRoles(true);
+        router.put(
+            `/admin/users/${rolesUser.id}/roles`,
+            { roles: selectedRoles },
+            {
+                preserveScroll: true,
+                onSuccess: () => setRolesUser(null),
+                onFinish: () => setSavingRoles(false),
+            },
+        );
+    };
 
     const editForm = useForm({
-        _method: 'put' as const,
-        name: '',
-        email: '',
-        phone: '',
+        _method: "put" as const,
+        name: "",
+        email: "",
+        phone: "",
         is_active: true,
         must_change_credentials: false,
         avatar: null as File | null,
     });
 
     const rejectForm = useForm({
-        rejection_reason: '',
+        rejection_reason: "",
     });
 
     // Revoke blob preview URLs when they're replaced/unmounted.
     useEffect(() => {
         return () => {
-            if (avatarPreview?.startsWith('blob:')) {
+            if (avatarPreview?.startsWith("blob:")) {
                 URL.revokeObjectURL(avatarPreview);
             }
         };
@@ -155,7 +197,7 @@ export default function Index({ users, filters }: Props) {
         next: Partial<{ search: string; status: string; per_page: string }>,
     ) => {
         router.get(
-            '/admin/users',
+            "/admin/users",
             {
                 search: (next.search ?? filters.search) || undefined,
                 status: (next.status ?? filters.status) || undefined,
@@ -173,7 +215,7 @@ export default function Index({ users, filters }: Props) {
     // Live (debounced) search.
     useEffect(() => {
         const timeout = setTimeout(() => {
-            if (search !== (filters.search ?? '')) {
+            if (search !== (filters.search ?? "")) {
                 updateFilters({ search });
             }
         }, 350);
@@ -183,7 +225,7 @@ export default function Index({ users, filters }: Props) {
     }, [search]);
 
     const filterStatus = (value: string) => {
-        updateFilters({ status: value === 'all' ? '' : value });
+        updateFilters({ status: value === "all" ? "" : value });
     };
 
     const setPerPage = (value: string) => {
@@ -203,10 +245,10 @@ export default function Index({ users, filters }: Props) {
         setAvatarPreview(user.avatar);
 
         editForm.setData({
-            _method: 'put',
+            _method: "put",
             name: user.name,
             email: user.email,
-            phone: user.phone ?? '',
+            phone: user.phone ?? "",
             is_active: user.is_active,
             must_change_credentials: user.must_change_credentials,
             avatar: null,
@@ -222,7 +264,7 @@ export default function Index({ users, filters }: Props) {
 
     const onAvatarChange = (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0] ?? null;
-        editForm.setData('avatar', file);
+        editForm.setData("avatar", file);
         setAvatarPreview(
             file ? URL.createObjectURL(file) : (editUser?.avatar ?? null),
         );
@@ -247,9 +289,9 @@ export default function Index({ users, filters }: Props) {
         });
 
         toast.promise(promise, {
-            loading: 'Saving changes...',
+            loading: "Saving changes...",
             success: `${editUser.name} has been updated.`,
-            error: 'Please check the form for errors.',
+            error: "Please check the form for errors.",
         });
     };
 
@@ -259,7 +301,7 @@ export default function Index({ users, filters }: Props) {
         }
 
         promiseAction(`/admin/users/${approveUser.id}/approve`, {
-            loading: 'Approving user...',
+            loading: "Approving user...",
             success: `${approveUser.name} has been approved.`,
         });
 
@@ -286,12 +328,12 @@ export default function Index({ users, filters }: Props) {
         });
 
         toast.promise(promise, {
-            loading: 'Rejecting user...',
+            loading: "Rejecting user...",
             success: `${rejectUser.name} has been rejected.`,
             error: (errors: Record<string, string>) =>
                 errors?.rejection_reason ??
                 errors?.user ??
-                'Something went wrong.',
+                "Something went wrong.",
         });
     };
 
@@ -302,8 +344,8 @@ export default function Index({ users, filters }: Props) {
 
         promiseAction(url, {
             loading: user.is_active
-                ? 'Deactivating user...'
-                : 'Activating user...',
+                ? "Deactivating user..."
+                : "Activating user...",
             success: user.is_active
                 ? `${user.name} has been deactivated.`
                 : `${user.name} has been activated.`,
@@ -325,8 +367,8 @@ export default function Index({ users, filters }: Props) {
         }
 
         promiseAction(`/admin/users/${deleteUser.id}`, {
-            method: 'delete',
-            loading: 'Deleting user...',
+            method: "delete",
+            loading: "Deleting user...",
             success: `${deleteUser.name} has been deleted.`,
         });
 
@@ -368,7 +410,7 @@ export default function Index({ users, filters }: Props) {
                         {/* Filters */}
                         <div className="mb-6 flex flex-col gap-3 md:flex-row">
                             <div className="relative flex-1">
-                                <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
 
                                 <Input
                                     placeholder="Search by name, email, or phone..."
@@ -381,7 +423,7 @@ export default function Index({ users, filters }: Props) {
                             </div>
 
                             <Select
-                                value={filters.status || 'all'}
+                                value={filters.status || "all"}
                                 onValueChange={filterStatus}
                             >
                                 <SelectTrigger className="w-full md:w-[180px]">
@@ -449,7 +491,7 @@ export default function Index({ users, filters }: Props) {
                                                                 {user.name}
                                                             </div>
 
-                                                            <div className="text-sm text-muted-foreground">
+                                                            <div className="text-muted-foreground text-sm">
                                                                 {user.email}
                                                             </div>
                                                         </div>
@@ -457,7 +499,7 @@ export default function Index({ users, filters }: Props) {
                                                 </TableCell>
 
                                                 <TableCell>
-                                                    {user.phone || '—'}
+                                                    {user.phone || "—"}
                                                 </TableCell>
                                                 <TableCell>
                                                     {user.roles.length > 0 ? (
@@ -493,7 +535,7 @@ export default function Index({ users, filters }: Props) {
                                                 </TableCell>
 
                                                 <TableCell>
-                                                    {user.reviewer?.name || '—'}
+                                                    {user.reviewer?.name || "—"}
                                                 </TableCell>
 
                                                 <TableCell>
@@ -524,73 +566,95 @@ export default function Index({ users, filters }: Props) {
                                                             <Pencil className="h-4 w-4" />
                                                         </Button>
 
-                                                        {user.status ===
-                                                            'pending' && (
-                                                            <>
-                                                                <Button
-                                                                    size="icon"
-                                                                    variant="outline"
-                                                                    title="approve"
-                                                                    onClick={() =>
-                                                                        setApproveUser(
-                                                                            user,
-                                                                        )
-                                                                    }
-                                                                >
-                                                                    <Check className="h-4 w-4" />
-                                                                </Button>
-
-                                                                <Button
-                                                                    size="icon"
-                                                                    variant="outline"
-                                                                    title="reject"
-                                                                    onClick={() =>
-                                                                        setRejectUser(
-                                                                            user,
-                                                                        )
-                                                                    }
-                                                                >
-                                                                    <X className="h-4 w-4" />
-                                                                </Button>
-                                                            </>
-                                                        )}
-
-                                                        {user.status ===
-                                                            'approved' && (
+                                                        {user.can_assign_roles && (
                                                             <Button
                                                                 size="icon"
                                                                 variant="outline"
-                                                                title={
-                                                                    user.is_active
-                                                                        ? 'deactivate'
-                                                                        : 'activate'
-                                                                }
+                                                                title="roles"
+                                                                onClick={() => openRoles(user)}
+                                                            >
+                                                                <ShieldCheck className="h-4 w-4" />
+                                                            </Button>
+                                                        )}
+
+                                                        {user.status ===
+                                                            "pending" && (
+                                                                <>
+                                                                    <Button
+                                                                        size="icon"
+                                                                        variant="outline"
+                                                                        title="approve"
+                                                                        onClick={() =>
+                                                                            setApproveUser(
+                                                                                user,
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        <Check className="h-4 w-4" />
+                                                                    </Button>
+
+                                                                    <Button
+                                                                        size="icon"
+                                                                        variant="outline"
+                                                                        title="reject"
+                                                                        onClick={() =>
+                                                                            setRejectUser(
+                                                                                user,
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        <X className="h-4 w-4" />
+                                                                    </Button>
+                                                                </>
+                                                            )}
+
+                                                        {user.status ===
+                                                            "approved" && (
+                                                                <Button
+                                                                    size="icon"
+                                                                    variant="outline"
+                                                                    title={
+                                                                        user.is_active
+                                                                            ? "deactivate"
+                                                                            : "activate"
+                                                                    }
+                                                                    onClick={() =>
+                                                                        setToggleTarget(
+                                                                            user,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    {user.is_active ? (
+                                                                        <UserX className="h-4 w-4" />
+                                                                    ) : (
+                                                                        <UserCheck className="h-4 w-4" />
+                                                                    )}
+                                                                </Button>
+                                                            )}
+
+                                                        {user.is_protected ? (
+                                                            <Badge
+                                                                variant="outline"
+                                                                className="gap-1"
+                                                                title="Superadmin accounts cannot be deleted"
+                                                            >
+                                                                <ShieldAlert className="h-3 w-3" />
+                                                                Protected
+                                                            </Badge>
+                                                        ) : (
+                                                            <Button
+                                                                size="icon"
+                                                                title="delete"
+                                                                variant="destructive"
                                                                 onClick={() =>
-                                                                    setToggleTarget(
+                                                                    setDeleteUser(
                                                                         user,
                                                                     )
                                                                 }
                                                             >
-                                                                {user.is_active ? (
-                                                                    <UserX className="h-4 w-4" />
-                                                                ) : (
-                                                                    <UserCheck className="h-4 w-4" />
-                                                                )}
+                                                                <Trash2 className="h-4 w-4" />
                                                             </Button>
                                                         )}
-
-                                                        <Button
-                                                            size="icon"
-                                                            title="delete"
-                                                            variant="destructive"
-                                                            onClick={() =>
-                                                                setDeleteUser(
-                                                                    user,
-                                                                )
-                                                            }
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
                                                     </div>
                                                 </TableCell>
                                             </TableRow>
@@ -603,8 +667,8 @@ export default function Index({ users, filters }: Props) {
                         {/* Pagination */}
                         {/* Pagination */}
                         <div className="mt-6 flex items-center justify-between px-2">
-                            <div className="flex-1 text-sm text-muted-foreground">
-                                Showing {users.from ?? 0} to {users.to ?? 0} of{' '}
+                            <div className="text-muted-foreground flex-1 text-sm">
+                                Showing {users.from ?? 0} to {users.to ?? 0} of{" "}
                                 {users.total} user(s).
                             </div>
 
@@ -674,6 +738,43 @@ export default function Index({ users, filters }: Props) {
                 </Card>
             </div>
 
+            {/* Roles Modal (Phase 4, F08): the server re-checks every change. */}
+            <Dialog open={!!rolesUser} onOpenChange={(open) => !open && setRolesUser(null)}>
+                <DialogContent className="sm:max-w-[440px]">
+                    <DialogHeader>
+                        <DialogTitle>Roles for {rolesUser?.name}</DialogTitle>
+                        <DialogDescription>
+                            Roles you can't give are greyed out: they include permissions you don't have, or only the Super Admin can give them.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-3 py-2">
+                        {assignableRoles.map((role) => {
+                            const checked = selectedRoles.includes(role.name);
+                            const locked = !role.assignable;
+
+                            return (
+                                <label key={role.id} className={`flex items-center gap-3 text-sm ${locked ? "opacity-50" : ""}`}>
+                                    <Checkbox
+                                        checked={checked}
+                                        disabled={locked}
+                                        onCheckedChange={(value) => toggleRole(role.name, value === true)}
+                                    />
+                                    <span>{role.label}</span>
+                                </label>
+                            );
+                        })}
+                    </div>
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setRolesUser(null)}>
+                            Cancel
+                        </Button>
+                        <Button type="button" onClick={saveRoles} disabled={savingRoles || selectedRoles.length === 0}>
+                            {savingRoles ? "Saving..." : "Save Roles"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
             {/* Edit User Modal */}
             <Dialog
                 open={!!editUser}
@@ -699,10 +800,10 @@ export default function Index({ users, filters }: Props) {
                                     />
                                     <AvatarFallback>
                                         {editForm.data.name
-                                            .split(' ')
+                                            .split(" ")
                                             .map((part) => part[0])
                                             .slice(0, 2)
-                                            .join('')
+                                            .join("")
                                             .toUpperCase()}
                                     </AvatarFallback>
                                 </Avatar>
@@ -735,7 +836,7 @@ export default function Index({ users, filters }: Props) {
                                     value={editForm.data.name}
                                     onChange={(event) =>
                                         editForm.setData(
-                                            'name',
+                                            "name",
                                             event.target.value,
                                         )
                                     }
@@ -757,7 +858,7 @@ export default function Index({ users, filters }: Props) {
                                     value={editForm.data.email}
                                     onChange={(event) =>
                                         editForm.setData(
-                                            'email',
+                                            "email",
                                             event.target.value,
                                         )
                                     }
@@ -778,7 +879,7 @@ export default function Index({ users, filters }: Props) {
                                     value={editForm.data.phone}
                                     onChange={(event) =>
                                         editForm.setData(
-                                            'phone',
+                                            "phone",
                                             event.target.value,
                                         )
                                     }
@@ -803,7 +904,7 @@ export default function Index({ users, filters }: Props) {
                                             checked={editForm.data.is_active}
                                             onCheckedChange={(checked) =>
                                                 editForm.setData(
-                                                    'is_active',
+                                                    "is_active",
                                                     checked,
                                                 )
                                             }
@@ -831,7 +932,7 @@ export default function Index({ users, filters }: Props) {
                                             }
                                             onCheckedChange={(checked) =>
                                                 editForm.setData(
-                                                    'must_change_credentials',
+                                                    "must_change_credentials",
                                                     checked,
                                                 )
                                             }
@@ -855,8 +956,8 @@ export default function Index({ users, filters }: Props) {
                                 disabled={editForm.processing}
                             >
                                 {editForm.processing
-                                    ? 'Saving...'
-                                    : 'Save Changes'}
+                                    ? "Saving..."
+                                    : "Save Changes"}
                             </Button>
                         </DialogFooter>
                     </form>
@@ -870,7 +971,7 @@ export default function Index({ users, filters }: Props) {
                 title="Approve User"
                 description={
                     <>
-                        Are you sure you want to approve{' '}
+                        Are you sure you want to approve{" "}
                         <strong>{approveUser?.name}</strong>? This will activate
                         their account and allow them to access the application.
                     </>
@@ -885,28 +986,28 @@ export default function Index({ users, filters }: Props) {
                 onOpenChange={(open) => !open && setToggleTarget(null)}
                 title={
                     toggleTarget?.is_active
-                        ? 'Deactivate User'
-                        : 'Activate User'
+                        ? "Deactivate User"
+                        : "Activate User"
                 }
                 description={
                     toggleTarget?.is_active ? (
                         <>
-                            Are you sure you want to deactivate{' '}
+                            Are you sure you want to deactivate{" "}
                             <strong>{toggleTarget?.name}</strong>? They will
                             immediately lose access to the application.
                         </>
                     ) : (
                         <>
-                            Are you sure you want to activate{' '}
+                            Are you sure you want to activate{" "}
                             <strong>{toggleTarget?.name}</strong>? They will
                             regain access to the application.
                         </>
                     )
                 }
                 confirmLabel={
-                    toggleTarget?.is_active ? 'Deactivate' : 'Activate'
+                    toggleTarget?.is_active ? "Deactivate" : "Activate"
                 }
-                variant={toggleTarget?.is_active ? 'destructive' : 'default'}
+                variant={toggleTarget?.is_active ? "destructive" : "default"}
                 onConfirm={confirmToggle}
             />
 
@@ -926,7 +1027,7 @@ export default function Index({ users, filters }: Props) {
                             <DialogTitle>Reject User</DialogTitle>
 
                             <DialogDescription>
-                                Provide a reason for rejecting{' '}
+                                Provide a reason for rejecting{" "}
                                 <strong>{rejectUser?.name}</strong>.
                             </DialogDescription>
                         </DialogHeader>
@@ -943,7 +1044,7 @@ export default function Index({ users, filters }: Props) {
                                 value={rejectForm.data.rejection_reason}
                                 onChange={(event) =>
                                     rejectForm.setData(
-                                        'rejection_reason',
+                                        "rejection_reason",
                                         event.target.value,
                                     )
                                 }
@@ -971,8 +1072,8 @@ export default function Index({ users, filters }: Props) {
                                 disabled={rejectForm.processing}
                             >
                                 {rejectForm.processing
-                                    ? 'Rejecting...'
-                                    : 'Reject User'}
+                                    ? "Rejecting..."
+                                    : "Reject User"}
                             </Button>
                         </DialogFooter>
                     </form>
@@ -986,7 +1087,7 @@ export default function Index({ users, filters }: Props) {
                 title="Delete User"
                 description={
                     <>
-                        Are you sure you want to delete{' '}
+                        Are you sure you want to delete{" "}
                         <strong>{deleteUser?.name}</strong>? The account will be
                         moved to the trash.
                     </>
@@ -1002,7 +1103,7 @@ export default function Index({ users, filters }: Props) {
 Index.layout = {
     breadcrumbs: [
         {
-            title: 'User Management',
+            title: "User Management",
             href: admin,
         },
     ],

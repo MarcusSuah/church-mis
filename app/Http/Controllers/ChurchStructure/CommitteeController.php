@@ -31,7 +31,7 @@ class CommitteeController extends Controller
             ->get()
             ->map(fn (Committee $c) => $this->present($c));
 
-        $selected = $selectedId ? Committee::with('chairperson:id,first_name,last_name,photo_url')->withCount('memberships')->find($selectedId) : null;
+        $selected = $selectedId ? Committee::with('chairperson:id,first_name,last_name,photo_url')->withCount('memberships')->whereSlugOrKey($selectedId)->first() : null;
 
         return Inertia::render('committees/index', [
             'committees' => $committees,
@@ -196,6 +196,7 @@ class CommitteeController extends Controller
     {
         return [
             'id' => $c->id,
+            'slug' => $c->slug,
             'name' => $c->name,
             'description' => $c->description,
             'objectives' => $c->objectives,

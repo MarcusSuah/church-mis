@@ -12,6 +12,7 @@ const NAV = [
     { to: '/church/departments', label: 'Departments' },
     { to: '/church/events', label: 'Events' },
     { to: '/church/sermons', label: 'Sermons' },
+    { to: '/gallery', label: 'Gallery' },
     { to: '/church/news', label: 'News' },
     { to: '/contact', label: 'Contact' },
 ] as const;
@@ -62,12 +63,12 @@ export function SiteHeader() {
             <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
                 <Brand />
 
-                <nav className="hidden items-center gap-1 lg:flex">
+                <nav className="hidden items-center gap-0.5 xl:flex">
                     {NAV.map((item) => (
                         <Link
                             key={item.to}
                             href={item.to}
-                            className={`rounded-sm px-3 py-2 text-sm font-medium transition-colors hover:text-foreground ${isActive(item.to) ? 'text-foreground' : 'text-muted-foreground'}`}
+                            className={`rounded-sm px-2.5 py-2 text-sm font-medium whitespace-nowrap transition-colors hover:text-foreground ${isActive(item.to) ? 'text-foreground' : 'text-muted-foreground'}`}
                         >
                             {item.label}
                         </Link>
@@ -104,7 +105,7 @@ export function SiteHeader() {
                         type="button"
                         aria-label="Toggle navigation"
                         onClick={() => setOpen((v) => !v)}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-sm border border-border lg:hidden"
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-sm border border-border xl:hidden"
                     >
                         {open ? (
                             <X className="h-4 w-4" />
@@ -116,8 +117,8 @@ export function SiteHeader() {
             </div>
 
             {open && (
-                <nav className="border-t border-border bg-background lg:hidden">
-                    <div className="mx-auto grid max-w-7xl gap-1 px-4 py-3 sm:px-6">
+                <nav className="max-h-[calc(100vh-4rem)] overflow-y-auto border-t border-border bg-background xl:hidden">
+                    <div className="mx-auto grid max-w-7xl gap-1 px-4 py-3 sm:grid-cols-2 sm:px-6">
                         {NAV.map((item) => (
                             <Link
                                 key={item.to}
@@ -146,6 +147,10 @@ export function SiteHeader() {
 
 export function SiteFooter() {
     const { get } = useSite();
+    // Privacy Policy, Terms… (published pages marked "show in footer" under System → Pages).
+    const footerPages =
+        usePage<{ footerPages?: { title: string; url: string }[] }>().props
+            .footerPages ?? [];
     const services = [
         ['Sunday School', get('service_sunday_school')],
         ['Sunday Worship', get('service_sunday_worship')],
@@ -197,9 +202,26 @@ export function SiteFooter() {
                         &copy; {new Date().getFullYear()} {get('name')}. All
                         rights reserved.
                     </span>
-                    <span>
-                        {get('short_name', 'SSBC')} Church Management System
-                    </span>
+                    <nav
+                        aria-label="Legal"
+                        className="flex flex-wrap gap-x-4 gap-y-1"
+                    >
+                        {footerPages.map((p) => (
+                            <Link
+                                key={p.url}
+                                href={p.url}
+                                className="hover:underline"
+                            >
+                                {p.title}
+                            </Link>
+                        ))}
+                        <Link href="/gallery" className="hover:underline">
+                            Gallery
+                        </Link>
+                        <Link href="/contact" className="hover:underline">
+                            Contact
+                        </Link>
+                    </nav>
                 </div>
             </div>
         </footer>

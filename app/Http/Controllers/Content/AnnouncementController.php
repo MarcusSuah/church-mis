@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Content;
 
 use App\Http\Controllers\Sacraments\RecordsController;
 use App\Models\Announcement;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -12,7 +13,7 @@ use Inertia\Inertia;
 
 class AnnouncementController extends RecordsController
 {
-    public const CATEGORIES = ['General', 'Service Update', 'Finance', 'Ministry', 'Bereavement', 'Membership', 'Outreach', 'Youth', 'Events'];
+    public const CATEGORIES = ['General', 'Service Update', 'Finance', 'Ministry', 'Bereavement', 'Membership', 'Outreach', 'Youth', 'Events', 'Sacraments'];
 
     public const PRIORITIES = ['Normal', 'High', 'Urgent'];
 
@@ -87,12 +88,12 @@ class AnnouncementController extends RecordsController
     }
 
     /** Pinned first, then newest. */
-    protected function sort(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
+    protected function sort(Builder $query): Builder
     {
         return $query->orderByDesc('is_pinned')->orderByDesc('created_at')->orderByDesc('id');
     }
 
-    protected function stats(\Illuminate\Database\Eloquent\Builder $all, \Illuminate\Database\Eloquent\Builder $filtered): array
+    protected function stats(Builder $all, Builder $filtered): array
     {
         return [
             'total' => (clone $all)->count(),

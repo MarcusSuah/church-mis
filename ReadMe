@@ -20,6 +20,15 @@ php artisan optimize:clear
 npm run build
 
 
+php artisan down
+# back up the database first
+composer install --no-dev --optimize-autoloader
+npm ci && npm run build
+php artisan migrate --force
+php artisan optimize:clear && php artisan optimize
+php artisan permission:cache-reset
+php artisan up
+```
 
 
 git remote add origin https://github.com/MarcusSuah/church-mis.git

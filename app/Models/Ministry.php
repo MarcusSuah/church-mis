@@ -16,7 +16,8 @@ class Ministry extends Model implements HasGroupMembers
 {
     use HasFactory, HasSlug, HasUuids;
 
-    public const CATEGORIES = ['worship', 'outreach', 'education', 'care', 'youth', 'men', 'women', 'seniors', 'missions', 'pastoral', 'finance', 'missions', 'prayer', 'deacon', 'leadership', 'other'];
+    /** Keep in step with App\Enums\MinistryCategory (the column is cast to it). */
+    public const CATEGORIES = ['worship', 'outreach', 'education', 'care', 'youth', 'men', 'women', 'seniors', 'missions', 'pastoral', 'finance', 'welfare', 'prayer', 'deacon', 'leadership', 'other'];
 
     public const ROLES = ['Member', 'Leader', 'Co-Leader', 'Secretary', 'Coordinator', 'Treasurer', 'Event Organizer', 'Volunteer', 'Mentor', 'Advisor', 'Trainer', 'Support Staff', 'Committee Member', 'Board Member', 'Chairperson', 'Vice Chairperson', 'Team Leader', 'Assistant Leader'];
 

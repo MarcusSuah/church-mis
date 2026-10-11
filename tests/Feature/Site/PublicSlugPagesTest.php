@@ -1,9 +1,14 @@
 <?php
 
+use App\Enums\Role;
+use App\Models\Department;
 use App\Models\Event;
+use App\Models\GalleryAlbum;
 use App\Models\Member;
 use App\Models\Ministry;
 use App\Models\Sermon;
+use App\Models\User;
+use Database\Seeders\RolePermissionSeeder;
 use Inertia\Testing\AssertableInertia as Assert;
 
 test('records get a unique slug from their title or name', function () {
@@ -50,4 +55,34 @@ test('hidden or unpublished content is not reachable by slug', function () {
     $this->get('/church/sermons/draft-message')->assertNotFound();
     $this->get('/church/ministries/closed-ministry')->assertNotFound();
     $this->get('/church/events/does-not-exist')->assertNotFound();
+});
+
+test('staff group pages open a group by its slug, and old id links still work', function () {
+    $this->seed(RolePermissionSeeder::class);
+    $admin = tap(User::factory()->create(['must_change_credentials' => false]), fn ($u) => $u->assignRole(Role::ADMIN->value));
+    $choir = Department::create(['name' => 'Mass Choir', 'category' => 'Choir']);
+
+    $this->actingAs($admin)->get('/departments?department=mass-choir')->assertInertia(fn (Assert $p) => $p
+        ->where('selected.name', 'Mass Choir')
+        ->where('departments.0.slug', 'mass-choir'));
+    $this->get("/departments?department={$choir->id}")->assertInertia(fn (Assert $p) => $p->where('selected.name', 'Mass Choir'));
+});
+
+test('the gallery department filter accepts the department slug', function () {
+    $youth = Department::create(['name' => 'Youth Fellowship', 'category' => 'Youth']);
+    $other = Department::create(['name' => 'Ushers Board', 'category' => 'Ushering']);
+    foreach ([[$youth, 'Youth Camp'], [$other, 'Ushers Day']] as [$department, $title]) {
+        $album = GalleryAlbum::create(['title' => $title, 'department_id' => $department->id, 'is_published' => true, 'event_date' => now()->toDateString()]);
+        $album->photos()->create(['image_path' => "gallery/{$album->id}/photo.jpg", 'sort_order' => 1]);
+    }
+
+    $this->get('/gallery?department=youth-fellowship')->assertInertia(fn (Assert $p) => $p
+        ->where('albums.data', fn ($albums) => collect($albums)->pluck('title')->all() === ['Youth Camp']));
+});
+
+test('load-test members from perf:seed get slugs like members created in the app', function () {
+    $this->artisan('perf:seed', ['--members' => 2, '--gifts' => 0, '--expenses' => 0])->assertSuccessful();
+
+    expect(Member::where('member_id', 'like', 'PERF-M-%')->whereNull('slug')->count())->toBe(0)
+        ->and(Member::where('member_id', 'like', 'PERF-M-%')->pluck('slug')->unique()->count())->toBe(2);
 });

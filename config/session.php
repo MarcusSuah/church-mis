@@ -169,7 +169,8 @@ return [
     |
     */
 
-    'secure' => env('SESSION_SECURE_COOKIE'),
+    // Phase 4: always HTTPS-only in production unless explicitly overridden.
+    'secure' => env('SESSION_SECURE_COOKIE', env('APP_ENV') === 'production'),
 
     /*
     |--------------------------------------------------------------------------
@@ -182,7 +183,8 @@ return [
     |
     */
 
-    'http_only' => env('SESSION_HTTP_ONLY', true),
+    // Phase 4: JavaScript can never read the session cookie.
+    'http_only' => true,
 
     /*
     |--------------------------------------------------------------------------

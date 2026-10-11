@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Members;
 
 use App\Http\Controllers\Controller;
 use App\Models\Member;
+use App\Support\Notifier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -22,6 +23,13 @@ class PublicRegistrationController extends Controller
                 'name' => config('church.name'),
                 'email' => config('church.email'),
             ],
+            // Service times from Church Settings → Website (blank ones are hidden).
+            'services' => collect([
+                'Sunday School' => config('church.service_sunday_school'),
+                'Sunday Worship' => config('church.service_sunday_worship'),
+                'Bible Study' => config('church.service_bible_study'),
+                'Prayer Meeting' => config('church.service_prayer_meeting'),
+            ])->filter()->map(fn ($time, $name) => "{$name}: {$time}")->values(),
         ]);
     }
 
@@ -88,7 +96,7 @@ class PublicRegistrationController extends Controller
             'date_joined' => now()->toDateString(),
         ]);
 
-        \App\Support\Notifier::permission(
+        Notifier::permission(
             'members.view',
             'New member registration',
             "New member registration from {$member->full_name}",

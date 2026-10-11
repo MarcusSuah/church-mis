@@ -1,4 +1,5 @@
 import { Link } from '@inertiajs/react';
+import { Home as HomeIcon } from 'lucide-react';
 import AppLogoIcon from '@/components/app-logo-icon';
 import { home } from '@/routes';
 import type { AuthLayoutProps } from '@/types';
@@ -9,7 +10,15 @@ export default function AuthSimpleLayout({
     description,
 }: AuthLayoutProps) {
     return (
-        <div className="flex min-h-svh flex-col items-center justify-center gap-6 bg-background p-6 md:p-10">
+        <div className="relative flex min-h-svh flex-col items-center justify-center gap-6 bg-background p-6 md:p-10">
+            {/* Back to the public website from login, register and the other auth pages. */}
+            <Link
+                href={home()}
+                className="absolute top-4 left-4 inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-muted md:top-6 md:left-6"
+            >
+                <HomeIcon className="size-4" />
+                Home
+            </Link>
             <div className="w-full max-w-sm">
                 <div className="flex flex-col gap-8">
                     <div className="flex flex-col items-center gap-4">

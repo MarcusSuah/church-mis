@@ -15,7 +15,7 @@ class Department extends Model implements HasGroupMembers
 {
     use HasFactory, HasSlug, HasUuids;
 
-    public const CATEGORIES = ['Praise & Worship', 'Administration', 'Ministry', 'Education', 'Communications', 'Service', 'Youth', 'Young Adults', 'Children', 'Community & Outreach', 'Choir', 'Evangelism', 'Hospitality', 'Media', 'Missions', 'Prayer', 'Technical Support', 'Ushering', 'General', 'Other'];
+    public const CATEGORIES = ['Praise & Worship', 'Administration', 'Ministry', 'Education', 'Communications', 'Service', 'Youth', 'Young Adults', 'Children', 'Community & Outreach', 'Choir', 'Evangelism', 'Hospitality', 'Media', 'Missions', 'Men', 'Women', 'Seniors', 'Prayer', 'Technical Support', 'Ushering', 'General', 'Other'];
 
     public const ROLES = ['Member', 'Leader', 'Co-Leader', 'Secretary', 'Treasurer', 'Coordinator', 'Assistant', 'Volunteer', 'Advisor', 'Mentor', 'Facilitator', 'Organizer', 'Chairperson', 'Vice Chairperson', 'Board Member', 'Committee Member', 'Team Lead', 'Subcommittee Lead', 'Project Manager', 'Event Coordinator'];
 
@@ -57,5 +57,11 @@ class Department extends Model implements HasGroupMembers
     public function slugSource(): string
     {
         return trim((string) $this->name);
+    }
+
+    /** Photo albums for this department (shown in the gallery and on its page). */
+    public function galleryAlbums(): HasMany
+    {
+        return $this->hasMany(GalleryAlbum::class);
     }
 }

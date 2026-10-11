@@ -7,10 +7,12 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Members\StoreMemberRequest;
 use App\Http\Requests\Members\UpdateMemberRequest;
 use App\Models\Member;
+use App\Support\Csv;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -91,7 +93,7 @@ class MemberController extends Controller
         }
 
         // Export just the rows ticked in the table
-        $ids = array_filter((array) $request->input('ids', []), fn ($id) => is_string($id) && \Illuminate\Support\Str::isUuid($id));
+        $ids = array_filter((array) $request->input('ids', []), fn ($id) => is_string($id) && Str::isUuid($id));
         if ($ids) {
             $query->whereIn('id', $ids);
         }
@@ -100,11 +102,11 @@ class MemberController extends Controller
 
         return response()->streamDownload(function () use ($query) {
             $out = fopen('php://output', 'w');
-            \App\Support\Csv::put($out, self::CSV_COLUMNS);
+            Csv::put($out, self::CSV_COLUMNS);
 
             $query->chunk(500, function ($members) use ($out) {
                 foreach ($members as $member) {
-                    \App\Support\Csv::put($out, array_map(function (string $column) use ($member) {
+                    Csv::put($out, array_map(function (string $column) use ($member) {
                         $value = $member->getAttribute($column);
 
                         return match (true) {
@@ -262,7 +264,7 @@ class MemberController extends Controller
 
     public function store(StoreMemberRequest $request): RedirectResponse
     {
-        $member = Member::create($request->validated());
+        $member = Member::create($this->profileData($request));
 
         Inertia::flash('toast', ['type' => 'success', 'message' => "{$member->full_name} was added."]);
 
@@ -271,7 +273,7 @@ class MemberController extends Controller
 
     public function update(UpdateMemberRequest $request, Member $member): RedirectResponse
     {
-        $member->update($request->validated());
+        $member->update($this->profileData($request, $member));
         $this->syncLinkedUser($member, $request);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => "{$member->full_name} was updated."]);
@@ -296,6 +298,27 @@ class MemberController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => "{$member->full_name} is now {$member->status}."]);
 
         return back();
+    }
+
+    /**
+     * Validated profile data. An uploaded photo is stored like the public
+     * registration's, and a blank Member ID never clears an existing one.
+     *
+     * @return array<string, mixed>
+     */
+    private function profileData(Request $request, ?Member $member = null): array
+    {
+        $data = $request->validated();
+        unset($data['photo']);
+
+        if ($request->hasFile('photo')) {
+            $data['photo_url'] = asset('storage/'.$request->file('photo')->store('uploads/members', 'public'));
+        }
+        if ($member && blank($data['member_id'] ?? null)) {
+            unset($data['member_id']);
+        }
+
+        return $data;
     }
 
     public function destroy(Member $member): RedirectResponse
@@ -326,7 +349,7 @@ class MemberController extends Controller
         $count = $members->count();
         Inertia::flash('toast', [
             'type' => 'success',
-            'message' => "{$count} ".str('member')->plural($count)." set to ".self::BULK_ACTIONS[$validated['action']].'.',
+            'message' => "{$count} ".str('member')->plural($count).' set to '.self::BULK_ACTIONS[$validated['action']].'.',
         ]);
 
         return back();

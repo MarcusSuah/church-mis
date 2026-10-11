@@ -29,6 +29,9 @@ class ContactReplyMail extends Mailable
 
     public function content(): Content
     {
-        return new Content(view: 'emails.contact-reply', with: ['church' => config('church')]);
+        // Replies sent before this one, oldest first, quoted under the message.
+        $earlierReplies = $this->contactMessage->replies()->get()->slice(0, -1)->values();
+
+        return new Content(view: 'emails.contact-reply', with: ['church' => config('church'), 'earlierReplies' => $earlierReplies]);
     }
 }

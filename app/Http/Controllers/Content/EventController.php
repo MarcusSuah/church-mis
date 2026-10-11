@@ -4,12 +4,13 @@ namespace App\Http\Controllers\Content;
 
 use App\Http\Controllers\Sacraments\RecordsController;
 use App\Models\Event;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\Rule;
 
 class EventController extends RecordsController
 {
-    public const TYPES = ['Sunday Worship', 'Special Service', 'Youth Event', 'Outreach', 'Retreat', 'Prayer Meeting', 'Children Event', 'General'];
+    public const TYPES = ['Sunday Worship', 'Special Service', 'Youth Event', 'Outreach', 'Retreat', 'Prayer Meeting', 'Children Event', 'Revival', 'Fellowship', 'Celebration', 'Baptism & Sacraments', 'General'];
 
     public const STATUSES = ['Upcoming', 'In Progress', 'Completed', 'Cancelled'];
 
@@ -73,14 +74,14 @@ class EventController extends RecordsController
     }
 
     /** Soonest first, as the page showed them. */
-    protected function sort(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
+    protected function sort(Builder $query): Builder
     {
         return $query->orderBy('start_date')->orderBy('id');
     }
 
     protected int $perPage = 9;
 
-    protected function stats(\Illuminate\Database\Eloquent\Builder $all, \Illuminate\Database\Eloquent\Builder $filtered): array
+    protected function stats(Builder $all, Builder $filtered): array
     {
         $byStatus = (clone $all)->toBase()->selectRaw('status, count(*) as n')->groupBy('status')->pluck('n', 'status');
 

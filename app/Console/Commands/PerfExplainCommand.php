@@ -98,7 +98,10 @@ class PerfExplainCommand extends Command
 
         $prefix = match ($driver) {
             'sqlite' => 'EXPLAIN QUERY PLAN ',
-            'mysql', 'mariadb', 'pgsql' => 'EXPLAIN ',
+            // Newer MySQL defaults explain_format to TREE, which returns one text
+            // column instead of the table/key/type/rows columns the summary reads.
+            'mysql' => 'EXPLAIN FORMAT=TRADITIONAL ',
+            'mariadb', 'pgsql' => 'EXPLAIN ',
             default => null,
         };
 
@@ -147,7 +150,7 @@ class PerfExplainCommand extends Command
             $type = $r['type'] ?? '';
             $line = ($r['table'] ?? '?').': '.($key ? "key={$key}" : 'no index').", type={$type}, rows=".($r['rows'] ?? '?');
 
-            return ($type === 'ALL' ? $line.'  <-- full scan' : $line);
+            return $type === 'ALL' ? $line.'  <-- full scan' : $line;
         })->implode(' | ');
     }
 }

@@ -846,6 +846,7 @@ function PrayerModal({
                                     <option key={c}>{c}</option>
                                 ))}
                             </select>
+                            {err('category')}
                         </div>
                         <div>
                             <label className={label}>Status</label>
@@ -860,6 +861,7 @@ function PrayerModal({
                                     <option key={s}>{s}</option>
                                 ))}
                             </select>
+                            {err('status')}
                         </div>
                     </div>
                     <div>

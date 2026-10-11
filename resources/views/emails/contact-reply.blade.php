@@ -15,9 +15,17 @@
                 <p style="margin:24px 0 0;font-size:14px">Blessings,<br><strong>{{ $staffName }}</strong><br>{{ $church['name'] ?? '' }}</p>
 
                 <div style="margin-top:28px;padding:14px 16px;background:#f9fafb;border-left:3px solid #c9a227;font-size:13px;color:#4b5563">
-                    <p style="margin:0 0 6px;font-weight:bold">Your message: {{ $contactMessage->subject }}</p>
+                    <p style="margin:0 0 6px;font-weight:bold">Your message: <br> {{ $contactMessage->subject }}</p> <br>
                     <p style="margin:0;white-space:pre-line">{{ $contactMessage->message }}</p>
                 </div>
+
+                {{-- Earlier replies in this conversation (the newest one is the email above). --}}
+                @foreach ($earlierReplies as $earlier)
+                    <div style="margin-top:12px;padding:14px 16px;background:#f9fafb;border-left:3px solid #1e3a5f;font-size:13px;color:#4b5563">
+                        <p style="margin:0 0 6px;font-weight:bold">Our reply on {{ $earlier->created_at?->format('j M Y, g:i A') }} ({{ $earlier->sent_by_name }})</p>
+                        <p style="margin:0;white-space:pre-line">{{ $earlier->body }}</p>
+                    </div>
+                @endforeach
             </td></tr>
             <tr><td style="padding:14px 24px;background:#f9fafb;font-size:11px;color:#9ca3af">
                 {{ collect([$church['address'] ?? null, $church['phone'] ?? null, $church['email'] ?? null])->filter()->implode(' · ') }}

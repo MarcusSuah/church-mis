@@ -3,29 +3,40 @@
 namespace App\Http\Responses;
 
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
- * The standard JSON envelope for /api responses (Phase 4):
- * { "success": bool, "message": string, "data"?: mixed, "errors"?: object, ...extra }.
+ * The one response shape for /api/v1 (Phase 4).
+ *
+ *   { "success": true,  "message": "…", "data": {…}, "meta": {…}? }
+ *   { "success": false, "message": "…", "errors": {…}? , "meta": {…}? }
+ *
+ * Error responses never include stack traces, SQL or exception class names.
  */
-final class ApiResponse
+class ApiResponse
 {
-    /** @param  array<string, mixed>  $extra */
-    public static function success(mixed $data = null, string $message = 'OK', int $status = 200, array $extra = []): JsonResponse
+    public static function success(mixed $data = null, string $message = 'OK', int $status = 200, array $meta = []): JsonResponse
     {
-        return response()->json(['success' => true, 'message' => $message, 'data' => $data, ...$extra], $status);
+        if ($data instanceof JsonResource) {
+            $data = $data->resolve(request());
+        }
+
+        $body = ['success' => true, 'message' => $message, 'data' => $data];
+        if ($meta !== []) {
+            $body['meta'] = $meta;
+        }
+
+        return response()->json($body, $status);
     }
 
-    /**
-     * @param  array<string, mixed>  $errors  field => messages (validation)
-     * @param  array<string, mixed>  $extra  additional top-level keys (e.g. an error reference)
-     * @param  array<string, mixed>  $headers  response headers to keep (e.g. Retry-After)
-     */
-    public static function error(string $message, int $status, array $errors = [], array $extra = [], array $headers = []): JsonResponse
+    public static function error(string $message, int $status, array $errors = [], array $meta = [], array $headers = []): JsonResponse
     {
-        $body = ['success' => false, 'message' => $message, ...$extra];
+        $body = ['success' => false, 'message' => $message];
         if ($errors !== []) {
             $body['errors'] = $errors;
+        }
+        if ($meta !== []) {
+            $body['meta'] = $meta;
         }
 
         return response()->json($body, $status, $headers);

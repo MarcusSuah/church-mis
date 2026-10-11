@@ -78,20 +78,23 @@ test('C5: a password reset ends every API token', function () {
 });
 
 test('C4/C17: the API needs a verified, authenticated user and returns only safe fields', function () {
-    $this->getJson('/api/user')->assertUnauthorized();
+    // /api/user was replaced by /api/v1/auth/me in Phase 4.
+    $this->getJson('/api/v1/auth/me')->assertUnauthorized();
 
     $unverified = User::factory()->unverified()->create();
-    $this->actingAs($unverified)->getJson('/api/user')->assertForbidden();
+    $this->actingAs($unverified)->getJson('/api/v1/auth/me')->assertForbidden();
 
-    $this->actingAs($this->admin)->getJson('/api/user')
+    $this->actingAs($this->admin)->getJson('/api/v1/auth/me')
         ->assertOk()
-        ->assertJsonStructure(['id', 'name', 'email', 'roles'])
-        ->assertJsonMissingPath('password')
-        ->assertJsonMissingPath('two_factor_secret');
+        ->assertJsonStructure(['data' => ['id', 'name', 'email', 'roles']])
+        ->assertJsonMissingPath('data.password')
+        ->assertJsonMissingPath('data.two_factor_secret');
 });
 
 test('C2: CORS does not allow unlisted origins', function () {
-    $this->withHeaders(['Origin' => 'https://evil.example', 'Access-Control-Request-Method' => 'GET'])
-        ->options('/api/user')
-        ->assertHeaderMissing('Access-Control-Allow-Origin');
+    $response = $this->withHeaders(['Origin' => 'https://evil.example', 'Access-Control-Request-Method' => 'GET'])
+        ->options('/api/v1/auth/me');
+
+    // With one configured origin the header names that origin, which the browser rejects for anyone else.
+    expect($response->headers->get('Access-Control-Allow-Origin'))->not->toBe('https://evil.example')->not->toBe('*');
 });

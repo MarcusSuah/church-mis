@@ -1,4 +1,5 @@
 import { Upload } from 'lucide-react';
+import { PersonAvatar } from '@/components/site/person-card';
 import { Head, router, useForm } from '@inertiajs/react';
 import {
     ArrowLeft,
@@ -49,6 +50,7 @@ import { useMemberOptionsSearch } from '@/hooks/use-member-options-search';
 
 type Department = {
     id: string;
+    slug: string | null;
     name: string;
     description: string | null;
     category: string;
@@ -408,38 +410,37 @@ export default function Departments({
                             {filtered.map((d) => (
                                 <div
                                     key={d.id}
-                                    className="card flex flex-col overflow-hidden transition-shadow duration-200 hover:shadow-md"
+                                    className="flex flex-col rounded-2xl border border-border bg-card shadow-sm transition hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-md"
                                 >
-                                    <div className="relative h-28 overflow-hidden bg-gradient-to-br from-primary to-primary/60">
-                                        {d.banner_url && (
-                                            <img
-                                                src={d.banner_url}
-                                                alt=""
-                                                className="absolute inset-0 h-full w-full object-cover opacity-60"
+                                    <div className="flex flex-1 flex-col p-5">
+                                        <div className="mb-3 flex items-start gap-4">
+                                            <PersonAvatar
+                                                name={d.name}
+                                                image={d.banner_url}
                                             />
-                                        )}
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                                        <div className="absolute right-4 bottom-3 left-4 flex items-end justify-between">
-                                            <div>
-                                                <span className="text-xs font-semibold tracking-wide text-white/70 uppercase">
-                                                    {d.category}
-                                                </span>
-                                                <h3 className="text-base leading-tight font-bold text-white">
+                                            <div className="min-w-0 flex-1">
+                                                <h3
+                                                    className="cursor-pointer font-display text-lg leading-snug font-bold text-foreground transition-colors hover:text-accent"
+                                                    onClick={() =>
+                                                        go({ department: d.slug ?? d.id })
+                                                    }
+                                                >
                                                     {d.name}
                                                 </h3>
+                                                <p className="mt-0.5 text-sm font-medium text-accent">
+                                                    {d.category}
+                                                </p>
                                             </div>
                                             <span
-                                                className={`rounded-full px-2 py-0.5 text-xs font-semibold ${d.is_active ? 'bg-success/20 text-green-200' : 'bg-danger/20 text-red-200'}`}
+                                                className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${d.is_active ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'}`}
                                             >
                                                 {d.is_active
                                                     ? 'Active'
                                                     : 'Inactive'}
                                             </span>
                                         </div>
-                                    </div>
-                                    <div className="flex flex-1 flex-col p-4">
                                         {d.description && (
-                                            <p className="mb-3 line-clamp-2 text-xs text-muted-foreground">
+                                            <p className="mb-3 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
                                                 {d.description}
                                             </p>
                                         )}
@@ -477,7 +478,7 @@ export default function Departments({
                                             <button
                                                 type="button"
                                                 onClick={() =>
-                                                    go({ department: d.id })
+                                                    go({ department: d.slug ?? d.id })
                                                 }
                                                 className="btn-primary flex-1 py-1.5 text-xs"
                                             >
@@ -1138,6 +1139,9 @@ function DepartmentModal({
                                 <option key={c}>{c}</option>
                             ))}
                         </select>
+                        {form.errors.category && (
+                            <p className="error-text">{form.errors.category}</p>
+                        )}
                     </div>
                     <div>
                         <label className="label-text">Status</label>

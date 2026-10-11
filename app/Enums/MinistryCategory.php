@@ -15,6 +15,10 @@ enum MinistryCategory: string
     case Seniors = 'seniors';
     case Missions = 'missions';
     case Welfare = 'welfare';
+    case Pastoral = 'pastoral';
+    case Finance = 'finance';
+    case Deacon = 'deacon';
+    case Leadership = 'leadership';
     case Other = 'other';
-    
+
 }

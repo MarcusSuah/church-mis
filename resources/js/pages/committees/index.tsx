@@ -37,6 +37,7 @@ import { useMemberOptionsSearch } from '@/hooks/use-member-options-search';
 
 type Committee = {
     id: string;
+    slug: string | null;
     name: string;
     description: string | null;
     objectives: string | null;
@@ -361,7 +362,7 @@ export default function Committees({
                                     <button
                                         type="button"
                                         className="relative block w-full text-left"
-                                        onClick={() => go({ committee: c.id })}
+                                        onClick={() => go({ committee: c.slug ?? c.id })}
                                     >
                                         <Banner
                                             c={c}
@@ -383,7 +384,7 @@ export default function Committees({
                                         <h3
                                             className="cursor-pointer font-semibold text-foreground transition-colors hover:text-primary"
                                             onClick={() =>
-                                                go({ committee: c.id })
+                                                go({ committee: c.slug ?? c.id })
                                             }
                                         >
                                             {c.name}
@@ -424,7 +425,7 @@ export default function Committees({
                                             <button
                                                 type="button"
                                                 onClick={() =>
-                                                    go({ committee: c.id })
+                                                    go({ committee: c.slug ?? c.id })
                                                 }
                                                 className="text-xs font-medium text-primary hover:underline"
                                             >
@@ -884,6 +885,9 @@ function CommitteeModal({
                             <option key={t}>{t}</option>
                         ))}
                     </select>
+                    {form.errors.committee_type && (
+                        <p className="error-text">{form.errors.committee_type}</p>
+                    )}
                 </div>
                 <div>
                     <label className={label}>Description</label>

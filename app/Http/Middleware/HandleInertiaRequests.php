@@ -10,6 +10,7 @@ use App\Models\Member;
 use App\Models\Notification;
 use App\Models\Permission;
 use App\Models\PrayerRequest;
+use App\Models\SitePage;
 use App\Support\Birthdays;
 use App\Support\Money;
 use Illuminate\Http\Request;
@@ -51,6 +52,9 @@ class HandleInertiaRequests extends Middleware
                     'must_change_password' => (bool) $user->must_change_credentials,
                 ] : null,
             ],
+
+            // Lock the screen after this many idle minutes (0 = off); set in Church Settings.
+            'screenLock' => $user ? ['minutes' => (int) config('church.lock_screen_minutes', 10)] : null,
 
             // Sidebar badge on Certificates: document requests waiting for approval.
             'pendingDocumentCount' => fn () => $user?->can('certificates.view')
@@ -94,6 +98,9 @@ class HandleInertiaRequests extends Middleware
             'activePrayerCount' => fn () => $user?->can('prayer-requests.view')
                 ? PrayerRequest::where('status', 'Active')->count()
                 : null,
+
+            // Footer links to the Privacy Policy, Terms and other pages (System → Pages).
+            'footerPages' => fn () => SitePage::footerLinks(),
 
             'sidebarOpen' => ! $request->hasCookie('sidebar_state')
                 || $request->cookie('sidebar_state') === 'true',

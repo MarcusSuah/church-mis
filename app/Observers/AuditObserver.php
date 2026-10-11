@@ -16,6 +16,7 @@ use App\Models\ChurchSetting;
 use App\Models\Committee;
 use App\Models\CommitteeMember;
 use App\Models\Communion;
+use App\Models\ContactMessage;
 use App\Models\Department;
 use App\Models\DepartmentActivity;
 use App\Models\DepartmentMember;
@@ -28,6 +29,8 @@ use App\Models\Family;
 use App\Models\FamilyMember;
 use App\Models\FinanceFund;
 use App\Models\Funeral;
+use App\Models\GalleryAlbum;
+use App\Models\GalleryPhoto;
 use App\Models\HeroSlide;
 use App\Models\Leader;
 use App\Models\Member;
@@ -40,6 +43,7 @@ use App\Models\Permission;
 use App\Models\PrayerRequest;
 use App\Models\Role;
 use App\Models\Sermon;
+use App\Models\SitePage;
 use App\Models\Tithe;
 use App\Models\User;
 use App\Models\Wedding;
@@ -88,6 +92,10 @@ class AuditObserver
         Leader::class => 'Church Structure',
         HeroSlide::class => 'Website',
         Belief::class => 'Website',
+        SitePage::class => 'Website',
+        GalleryAlbum::class => 'Website',
+        GalleryPhoto::class => 'Website',
+        ContactMessage::class => 'Website',
         ChurchSetting::class => 'System',
         MemberMessage::class => 'Members',
         Role::class => 'Security',

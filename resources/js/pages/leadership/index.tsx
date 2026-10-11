@@ -17,6 +17,7 @@ import {
 import type { ReactNode } from 'react';
 import { useMemo, useState } from 'react';
 import ConfirmModal from '@/components/ssbcms/ConfirmModal';
+import { PersonCard } from '@/components/site/person-card';
 import ImageUploadField from '@/components/ssbcms/ImageUploadField';
 import { formatLongDate } from '@/lib/format';
 import { destroy, index, store, update } from '@/routes/leadership';
@@ -265,88 +266,58 @@ export default function Leadership({
                     )}
                 </div>
             ) : (
-                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
                     {filtered.map((l) => (
-                        <div
+                        <PersonCard
                             key={l.id}
-                            className="group overflow-hidden rounded-xl border border-border bg-card transition-shadow hover:shadow-md"
-                        >
-                            <button
-                                type="button"
-                                className="relative block aspect-[4/5] w-full overflow-hidden bg-gradient-to-br from-primary/10 to-accent/10 text-left"
-                                onClick={() => setViewing(l)}
-                            >
-                                {l.photo_url ? (
-                                    // Blurred copy fills the frame; the sharp photo is shown whole (never cropped).
-                                    <>
-                                        <img
-                                            src={l.photo_url}
-                                            alt=""
-                                            aria-hidden
-                                            className="absolute inset-0 h-full w-full scale-110 object-cover opacity-60 blur-xl"
-                                        />
-                                        <img
-                                            src={l.photo_url}
-                                            alt={`${l.first_name} ${l.last_name} - ${l.title}`}
-                                            className="absolute inset-0 h-full w-full object-contain"
-                                        />
-                                    </>
-                                ) : (
-                                    <div className="flex h-full w-full items-center justify-center">
-                                        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/20">
-                                            <User
-                                                size={36}
-                                                className="text-primary/50"
+                            name={`${l.first_name} ${l.last_name}`}
+                            role={l.title}
+                            body={l.bio}
+                            image={l.photo_url}
+                            footer={
+                                <div className="space-y-1.5">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <RolePill role={l.leadership_role} />
+                                        {!l.is_active && (
+                                            <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                                                Inactive
+                                            </span>
+                                        )}
+                                    </div>
+                                    {l.email && (
+                                        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                            <Mail
+                                                size={12}
+                                                className="shrink-0"
                                             />
-                                        </div>
-                                    </div>
-                                )}
-                                <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/60 to-transparent" />
-                                <div className="absolute right-3 bottom-3 left-3">
-                                    <RolePill role={l.leadership_role} />
+                                            <span className="truncate">
+                                                {l.email}
+                                            </span>
+                                        </p>
+                                    )}
+                                    {l.office_location && (
+                                        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                            <MapPin
+                                                size={12}
+                                                className="shrink-0"
+                                            />
+                                            <span className="truncate">
+                                                {l.office_location}
+                                            </span>
+                                        </p>
+                                    )}
                                 </div>
-                                {!l.is_active && (
-                                    <div className="absolute top-2 right-2 rounded-full bg-black/50 px-2 py-0.5 text-xs text-white">
-                                        Inactive
-                                    </div>
-                                )}
-                            </button>
-
-                            <div className="p-4">
-                                <h3
-                                    className="cursor-pointer text-sm font-semibold text-foreground transition-colors hover:text-primary"
-                                    onClick={() => setViewing(l)}
-                                >
-                                    {l.first_name} {l.last_name}
-                                </h3>
-                                <p className="mt-0.5 text-xs text-muted-foreground">
-                                    {l.title}
-                                </p>
-                                {l.email && (
-                                    <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-                                        <Mail size={11} />
-                                        <span className="truncate">
-                                            {l.email}
-                                        </span>
-                                    </div>
-                                )}
-                                {l.office_location && (
-                                    <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-                                        <MapPin size={11} />
-                                        <span className="truncate">
-                                            {l.office_location}
-                                        </span>
-                                    </div>
-                                )}
-                                <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
+                            }
+                            actions={
+                                <>
                                     <button
                                         type="button"
                                         onClick={() => setViewing(l)}
                                         className="text-xs font-medium text-primary hover:underline"
                                     >
-                                        View Profile
+                                        View profile
                                     </button>
-                                    <div className="flex gap-1">
+                                    <div className="ml-auto flex gap-1">
                                         {can.update && (
                                             <button
                                                 type="button"
@@ -355,7 +326,7 @@ export default function Leadership({
                                                 aria-label={`Edit ${l.first_name} ${l.last_name}`}
                                             >
                                                 <Pencil
-                                                    size={13}
+                                                    size={14}
                                                     className="text-muted-foreground"
                                                 />
                                             </button>
@@ -368,15 +339,15 @@ export default function Leadership({
                                                 aria-label={`Remove ${l.first_name} ${l.last_name}`}
                                             >
                                                 <Trash2
-                                                    size={13}
+                                                    size={14}
                                                     className="text-danger"
                                                 />
                                             </button>
                                         )}
                                     </div>
-                                </div>
-                            </div>
-                        </div>
+                                </>
+                            }
+                        />
                     ))}
                 </div>
             )}

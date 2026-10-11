@@ -1,8 +1,8 @@
 <?php
 
+use App\Models\Permission;
+use App\Models\Role;
 use Spatie\Permission\DefaultTeamResolver;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 
 return [
 
@@ -118,7 +118,10 @@ return [
      * Set this to false if you want to implement custom logic for checking permissions.
      */
 
-    'register_permission_check_method' => true,
+    // Phase 4: false on purpose. App\Support\Authorization registers the
+    // permission check itself, so that API token abilities are checked
+    // BEFORE roles (a token can never do more than it was issued for).
+    'register_permission_check_method' => false,
 
     /*
      * When set to true, Laravel\Octane\Events\OperationTerminated event listener will be registered

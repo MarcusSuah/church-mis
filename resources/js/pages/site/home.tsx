@@ -3,12 +3,16 @@ import {
     ArrowRight,
     CalendarDays,
     Clock,
+    Eye,
+    FileText,
     MapPin,
     Mic,
     Users,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
+import { DocumentViewer } from '@/components/site/document-viewer';
+import type { PublicDocument } from '@/components/site/document-viewer';
 import { PublicLayout } from '@/components/site/PublicLayout';
 import { Button } from '@/components/ui/button';
 import { safeUrl } from '@/lib/safe-url';
@@ -48,6 +52,14 @@ type Props = {
         description: string | null;
     }[];
     departments: { id: string; href: string; name: string }[];
+    documents?: PublicDocument[];
+    /** Active Senior Pastor from Church Leadership (null when none is set up). */
+    pastor?: {
+        name: string;
+        title: string;
+        photo: string | null;
+        href: string;
+    } | null;
 };
 
 function SectionHeading({
@@ -195,8 +207,11 @@ export default function Home({
     announcements,
     ministries,
     departments,
+    documents = [],
+    pastor = null,
 }: Props) {
     const { get } = useSite();
+    const [reading, setReading] = useState<PublicDocument | null>(null);
     const services = [
         { label: 'Sunday School', value: get('service_sunday_school') },
         { label: 'Sunday Worship', value: get('service_sunday_worship') },
@@ -269,12 +284,32 @@ export default function Home({
                                 <blockquote className="mt-4 font-display text-lg leading-relaxed md:text-xl">
                                     &ldquo;{get('pastor_message')}&rdquo;
                                 </blockquote>
-                                <p className="mt-6 text-sm font-semibold">
-                                    {get('senior_pastor', 'Senior Pastor')}
-                                </p>
-                                <p className="text-xs tracking-[0.14em] text-muted-foreground uppercase">
-                                    Senior Pastor
-                                </p>
+                                <div className="mt-6 flex items-center gap-3">
+                                    {pastor?.photo && (
+                                        <img
+                                            src={pastor.photo}
+                                            alt={pastor.name}
+                                            className="h-12 w-12 shrink-0 rounded-full object-cover"
+                                        />
+                                    )}
+                                    <div>
+                                        {pastor ? (
+                                            <Link
+                                                href={pastor.href}
+                                                className="text-sm font-semibold hover:underline"
+                                            >
+                                                {pastor.name}
+                                            </Link>
+                                        ) : (
+                                            <p className="text-sm font-semibold">
+                                                {get('senior_pastor', 'Senior Pastor')}
+                                            </p>
+                                        )}
+                                        <p className="text-xs tracking-[0.14em] text-muted-foreground uppercase">
+                                            {pastor?.title ?? 'Senior Pastor'}
+                                        </p>
+                                    </div>
+                                </div>
                             </CardContent>
                         </Card>
                     )}
@@ -509,6 +544,62 @@ export default function Home({
                     </Button>
                 </div>
             </section>
+
+            {documents.length > 0 && (
+                <section className="mx-auto w-full max-w-7xl px-4 py-16 sm:px-6 sm:py-20">
+                    <SectionHeading
+                        eyebrow="Church library"
+                        title="Public documents"
+                    />
+                    <p className="-mt-4 mb-8 max-w-2xl text-sm text-muted-foreground">
+                        Constitutions, reports and resources shared by the
+                        church. Click a document to read it here.
+                    </p>
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        {documents.map((d) => (
+                            <button
+                                key={d.id}
+                                type="button"
+                                onClick={() => setReading(d)}
+                                className="group flex h-full items-start gap-4 rounded-2xl border border-border bg-card p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-md focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
+                            >
+                                <span className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl bg-accent/15 text-accent">
+                                    <FileText className="h-5 w-5" />
+                                    <span className="mt-0.5 text-[9px] font-bold tracking-wider">
+                                        {d.type}
+                                    </span>
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                    <span className="line-clamp-2 font-display font-bold group-hover:text-accent">
+                                        {d.title}
+                                    </span>
+                                    {d.category && (
+                                        <span className="mt-0.5 block text-xs font-medium text-accent">
+                                            {d.category}
+                                        </span>
+                                    )}
+                                    {d.description && (
+                                        <span className="mt-2 line-clamp-2 block text-sm text-muted-foreground">
+                                            {d.description}
+                                        </span>
+                                    )}
+                                    <span className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-foreground">
+                                        <Eye className="h-3.5 w-3.5 text-accent" />
+                                        View document
+                                    </span>
+                                </span>
+                            </button>
+                        ))}
+                    </div>
+                </section>
+            )}
+
+            {reading && (
+                <DocumentViewer
+                    doc={reading}
+                    onClose={() => setReading(null)}
+                />
+            )}
         </PublicLayout>
     );
 }

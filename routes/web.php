@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Account\ChangePasswordController;
+use App\Http\Controllers\Account\LockScreenController;
 use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\UserController;
@@ -35,12 +36,15 @@ use App\Http\Controllers\Sacraments\CommunionController;
 use App\Http\Controllers\Sacraments\FuneralController;
 use App\Http\Controllers\Sacraments\PastoralCareController;
 use App\Http\Controllers\Sacraments\WeddingController;
+use App\Http\Controllers\Site\GalleryController;
 use App\Http\Controllers\Site\PublicSiteController;
 use App\Http\Controllers\System\ActivityController;
 use App\Http\Controllers\System\AuditLogController;
 use App\Http\Controllers\System\ChurchSettingsController;
 use App\Http\Controllers\System\ContactMessageController;
+use App\Http\Controllers\System\GalleryAlbumController;
 use App\Http\Controllers\System\NotificationController;
+use App\Http\Controllers\System\SitePageController;
 use App\Http\Controllers\System\UploadController;
 use App\Http\Controllers\System\WebsiteController;
 use App\Http\Controllers\WorshipCare\AttendanceController;
@@ -58,6 +62,10 @@ Route::controller(PublicSiteController::class)->group(function () {
     Route::get('about', 'about')->name('site.about');
     Route::get('contact', 'contact')->name('site.contact');
     Route::post('contact', 'sendMessage')->middleware('throttle:public-forms')->name('site.contact.send');
+    // Editable pages (System → Pages): Privacy Policy, Terms & Conditions, Terms of Use…
+    Route::get('pages/{sitePage:slug}', 'showPage')->name('site.page');
+    // Public documents open inside the page for reading only (no download link).
+    Route::get('church/documents/{document}/view', 'viewDocument')->middleware('throttle:60,1')->name('site.documents.view');
     Route::prefix('church')->name('site.')->group(function () {
         Route::get('events', 'events')->name('events');
         Route::get('events/{event}', 'showEvent')->name('events.show');
@@ -73,6 +81,33 @@ Route::controller(PublicSiteController::class)->group(function () {
         Route::get('leadership/{leader}', 'showLeader')->name('leadership.show');
     });
 });
+// Photo gallery (System → Gallery manages the albums).
+Route::get('gallery', [GalleryController::class, 'index'])->name('site.gallery');
+
+// Short addresses for the legal pages.
+Route::get('privacy', fn () => redirect()->route('site.page', 'privacy-policy'))->name('site.privacy');
+Route::get('terms', fn () => redirect()->route('site.page', 'terms-and-conditions'))->name('site.terms');
+Route::get('terms-of-use', fn () => redirect()->route('site.page', 'terms-of-use'))->name('site.terms-of-use');
+
+// System → Gallery: photo albums (up to 10 photos each) for the public gallery.
+Route::middleware(['auth', 'verified', 'permission:website.manage'])->prefix('gallery-albums')->name('gallery-albums.')->group(function () {
+    Route::get('/', [GalleryAlbumController::class, 'index'])->name('index');
+    Route::post('/', [GalleryAlbumController::class, 'store'])->name('store');
+    Route::patch('{album}', [GalleryAlbumController::class, 'update'])->name('update');
+    Route::delete('{album}', [GalleryAlbumController::class, 'destroy'])->name('destroy');
+    Route::post('{album}/photos', [GalleryAlbumController::class, 'storePhotos'])->middleware('throttle:30,1')->name('photos.store');
+    Route::patch('photos/{photo}', [GalleryAlbumController::class, 'updatePhoto'])->name('photos.update');
+    Route::delete('photos/{photo}', [GalleryAlbumController::class, 'destroyPhoto'])->name('photos.destroy');
+});
+
+// System → Pages: edit the website's legal and information pages.
+Route::middleware(['auth', 'verified', 'permission:website.manage'])->prefix('site-pages')->name('site-pages.')->group(function () {
+    Route::get('/', [SitePageController::class, 'index'])->name('index');
+    Route::post('/', [SitePageController::class, 'store'])->name('store');
+    Route::patch('{page}', [SitePageController::class, 'update'])->name('update');
+    Route::delete('{page}', [SitePageController::class, 'destroy'])->name('destroy');
+});
+
 // System → Messages: inbox for the website contact form.
 Route::middleware(['auth', 'verified', 'permission:messages.view'])->prefix('messages')->name('messages.')->group(function () {
     Route::get('/', [ContactMessageController::class, 'index'])->name('index');
@@ -140,6 +175,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('change-password', [ChangePasswordController::class, 'show'])->name('password.change');
     Route::put('change-password', [ChangePasswordController::class, 'update'])
         ->middleware('throttle:6,1')->name('password.change.update');
+
+    // Lock screen: idle timeout (Church Settings) or the sidebar button. The user stays signed in.
+    Route::get('lock-screen', [LockScreenController::class, 'show'])->name('lock-screen');
+    Route::post('lock-screen', [LockScreenController::class, 'lock'])->name('lock-screen.lock');
+    Route::post('lock-screen/unlock', [LockScreenController::class, 'unlock'])
+        ->middleware('throttle:6,1')->name('lock-screen.unlock');
 
     /*
     |--------------------------------------------------------------------------
@@ -480,6 +521,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
             Route::post('/users/{user}/activate', [UserController::class, 'activate'])->name('users.activate');
             Route::post('/users/{user}/deactivate', [UserController::class, 'deactivate'])->name('users.deactivate');
+            Route::put('/users/{user}/roles', [UserController::class, 'updateRoles'])->name('users.roles.update');
         });
         Route::middleware('permission:users.approve')->group(function () {
             Route::post('/users/{user}/approve', [UserController::class, 'approve'])->name('users.approve');

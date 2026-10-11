@@ -55,6 +55,8 @@ class PerfSeedCommand extends Command
             return ['table' => 'members', 'row' => [
                 'id' => $id, 'member_id' => 'PERF-M-'.str_pad((string) $i, 8, '0', STR_PAD_LEFT),
                 'first_name' => $first, 'last_name' => "{$last}{$i}", 'email' => "perf{$i}@example.test",
+                // Bulk inserts skip HasSlug, so the slug is set here (same format).
+                'slug' => Str::slug("{$first} {$last}{$i}"),
                 'status' => ['Active', 'Active', 'Active', 'Inactive', 'Pending'][$i % 5],
                 'gender' => $i % 2 ? 'Male' : 'Female', 'created_at' => now(),
             ]];

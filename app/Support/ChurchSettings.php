@@ -16,7 +16,7 @@ class ChurchSettings
     public const CURRENCIES = ['USD', 'LRD'];
 
     /** Keys an admin can edit, with their config fallbacks. */
-    public const KEYS = ['name', 'short_name', 'address', 'email', 'phone', 'logo_url', 'currency', 'exchange_rate', 'birthday_notifications', 'senior_pastor', 'church_secretary',
+    public const KEYS = ['name', 'short_name', 'address', 'email', 'phone', 'logo_url', 'currency', 'exchange_rate', 'birthday_notifications', 'lock_screen_minutes', 'senior_pastor', 'church_secretary',
         // Public website
         'tagline', 'description', 'mission', 'vision', 'story', 'pastor_message', 'city', 'country',
         'service_sunday_school', 'service_sunday_worship', 'service_bible_study', 'service_prayer_meeting',
@@ -39,6 +39,7 @@ class ChurchSettings
         }
         $s['currency'] = in_array(strtoupper((string) $s['currency']), self::CURRENCIES, true) ? strtoupper($s['currency']) : 'USD';
         $s['exchange_rate'] = max(0.0001, (float) ($s['exchange_rate'] ?: 190));
+        $s['lock_screen_minutes'] = max(0, min(480, (int) ($s['lock_screen_minutes'] ?? 10)));
         $s['birthday_notifications'] = filter_var($s['birthday_notifications'] ?? true, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? true;
 
         return $s;

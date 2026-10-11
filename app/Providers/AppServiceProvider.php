@@ -2,17 +2,23 @@
 
 namespace App\Providers;
 
-use App\Enums\Role as RoleEnum;
+use App\Models\Department;
 use App\Models\Member;
+use App\Models\Ministry;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\UserActivity;
 use App\Observers\AuditObserver;
 use App\Observers\NotifyObserver;
+use App\Policies\DepartmentPolicy;
 use App\Policies\MemberPolicy;
+use App\Policies\MinistryPolicy;
+use App\Policies\RolePolicy;
 use App\Policies\UserPolicy;
 use App\Services\ActivityLogger;
+use App\Support\ApiRateLimits;
+use App\Support\Authorization;
 use App\Support\ChurchSettings;
 use App\Support\Notifier;
 use App\Support\SessionLimiter;
@@ -49,12 +55,15 @@ class AppServiceProvider extends ServiceProvider
 
         Gate::policy(User::class, UserPolicy::class);
         Gate::policy(Member::class, MemberPolicy::class);
+        Gate::policy(Role::class, RolePolicy::class);
+        Gate::policy(Department::class, DepartmentPolicy::class);
+        Gate::policy(Ministry::class, MinistryPolicy::class);
 
-        // Super admin passes every ability check (policies, @can, and
-        // Spatie's permission middleware, which goes through the Gate).
-        Gate::before(function (User $user) {
-            return $user->hasRole(RoleEnum::SUPERADMIN->value) ? true : null;
-        });
+        // Phase 4: one Gate::before for API token abilities, the Superadmin
+        // bypass and Spatie permissions, in that order (see the class).
+        Authorization::register();
+
+        ApiRateLimits::register();
 
         // Audit trail for church records.
         foreach (array_keys(AuditObserver::MODULES) as $model) {
@@ -102,7 +111,19 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(Login::class, function (Login $e) {
             $req = request();
             $e->user->forceFill(['last_login_at' => now(), 'last_login_ip' => $req->ip()])->saveQuietly();
-            SessionLimiter::enforce($e->user, $req);
+            // F09: remember THIS user's password hash for AuthenticateSession, so a
+            // hash left in the session by a previous account can't sign them out.
+            if ($e->guard === 'web' && $req->hasSession()) {
+                $guard = auth()->guard('web');
+                $hash = method_exists($guard, 'hashPasswordForCookie')
+                    ? $guard->hashPasswordForCookie($e->user->getAuthPassword())
+                    : $e->user->getAuthPassword();
+                $req->session()->put('password_hash_web', $hash);
+            }
+            // Device limit counts browser sessions only; an API token sign-in has none.
+            if ($e->guard === 'web' && $req->hasSession()) {
+                SessionLimiter::enforce($e->user, $req);
+            }
             ActivityLogger::log($req, 'login', 'Signed in', $e->user);
         });
 

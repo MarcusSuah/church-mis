@@ -6,9 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\Member;
 use App\Models\Ministry;
 use App\Models\MinistryMember;
+use App\Support\LeadershipScope;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -22,6 +24,14 @@ class MinistryController extends Controller
     public function index(Request $request): Response
     {
         $user = $request->user();
+        // Leaders without ministries.manage-any may only edit the groups they lead (F08).
+        $manageAny = $user->can('ministries.manage-any');
+        $ledIds = $manageAny ? [] : LeadershipScope::ministryIds($user);
+        $inScope = fn (Ministry $x) => $manageAny || in_array($x->id, $ledIds, false);
+        $abilities = fn (Ministry $x) => [
+            'can_update' => $user->can('ministries.update') && $inScope($x),
+            'can_delete' => $user->can('ministries.delete') && $inScope($x),
+        ];
         $selectedId = $request->string('ministry')->toString() ?: null;
 
         $ministries = Ministry::query()
@@ -29,14 +39,15 @@ class MinistryController extends Controller
             ->withCount('memberships')
             ->orderBy('name')
             ->get()
-            ->map(fn (Ministry $m) => $this->present($m));
+            ->map(fn (Ministry $m) => [...$this->present($m), ...$abilities($m)]);
 
-        $selected = $selectedId ? Ministry::with('leader:id,first_name,last_name,photo_url')->withCount('memberships')->find($selectedId) : null;
+        $selected = $selectedId ? Ministry::with('leader:id,first_name,last_name,photo_url')->withCount('memberships')->whereSlugOrKey($selectedId)->first() : null;
 
         return Inertia::render('ministries/index', [
             'ministries' => $ministries,
             'selected' => $selected ? [
                 ...$this->present($selected),
+                ...$abilities($selected),
                 'members' => $selected->memberships()
                     ->with('member:id,member_id,first_name,last_name,email,photo_url')
                     ->get()
@@ -87,6 +98,8 @@ class MinistryController extends Controller
 
     public function update(Request $request, Ministry $ministry): RedirectResponse
     {
+        Gate::authorize('update', $ministry);
+
         $data = $request->validate($this->rules($ministry));
         $oldName = $ministry->name;
 
@@ -104,6 +117,8 @@ class MinistryController extends Controller
 
     public function destroy(Ministry $ministry): RedirectResponse
     {
+        Gate::authorize('delete', $ministry);
+
         DB::transaction(function () use ($ministry) {
             Member::where('ministry', $ministry->name)->update(['ministry' => null]);
             $ministry->delete();
@@ -116,6 +131,8 @@ class MinistryController extends Controller
 
     public function addMember(Request $request, Ministry $ministry): RedirectResponse
     {
+        Gate::authorize('update', $ministry);
+
         $data = $request->validate([
             'member_id' => ['required', 'uuid', 'exists:members,id', Rule::unique('ministry_members')->where('ministry_id', $ministry->id)],
         ], ['member_id.unique' => 'That member is already in this ministry.']);
@@ -132,6 +149,8 @@ class MinistryController extends Controller
 
     public function updateMember(Request $request, Ministry $ministry, MinistryMember $ministryMember): RedirectResponse
     {
+        Gate::authorize('update', $ministry);
+
         abort_unless($ministryMember->ministry_id === $ministry->id, 404);
 
         $data = $request->validate(['role' => ['required', Rule::in(Ministry::ROLES)]]);
@@ -152,6 +171,8 @@ class MinistryController extends Controller
 
     public function setLeader(Request $request, Ministry $ministry): RedirectResponse
     {
+        Gate::authorize('update', $ministry);
+
         $data = $request->validate(['member_id' => ['required', 'uuid', 'exists:members,id']]);
 
         DB::transaction(function () use ($ministry, $data) {
@@ -168,6 +189,8 @@ class MinistryController extends Controller
 
     public function removeMember(Ministry $ministry, MinistryMember $ministryMember): RedirectResponse
     {
+        Gate::authorize('update', $ministry);
+
         abort_unless($ministryMember->ministry_id === $ministry->id, 404);
 
         DB::transaction(function () use ($ministry, $ministryMember) {
@@ -211,6 +234,7 @@ class MinistryController extends Controller
     {
         return [
             'id' => $m->id,
+            'slug' => $m->slug,
             'name' => $m->name,
             'description' => $m->description,
             'vision' => $m->vision,

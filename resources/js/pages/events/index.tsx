@@ -648,7 +648,7 @@ function EventModal({
                         placeholder="Enter event title"
                     />
                 </Field>
-                <Field label="Event Type">
+                <Field label="Event Type" error={form.errors.event_type}>
                     <select
                         className={inputCls}
                         value={form.data.event_type}
@@ -661,7 +661,7 @@ function EventModal({
                         ))}
                     </select>
                 </Field>
-                <Field label="Status">
+                <Field label="Status" error={form.errors.status}>
                     <select
                         className={inputCls}
                         value={form.data.status}

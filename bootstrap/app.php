@@ -1,7 +1,9 @@
 <?php
 
 use App\Exceptions\ApiExceptionRenderer;
+use App\Http\Middleware\Api\GuardApiAccess;
 use App\Http\Middleware\EnsurePasswordChanged;
+use App\Http\Middleware\EnsureScreenUnlocked;
 use App\Http\Middleware\EnsureUserHasRole;
 use App\Http\Middleware\GuardAccess;
 use App\Http\Middleware\HandleAppearance;
@@ -35,10 +37,22 @@ return Application::configure(basePath: dirname(__DIR__))
             GuardAccess::class,
             HandleInertiaRequests::class,
             EnsurePasswordChanged::class,
+            EnsureScreenUnlocked::class,
             TrackActivity::class,
             AddLinkHeadersForPreloadedAssets::class,
         ]);
+
+        // Phase 4 API: cookie sessions (with CSRF) for the church's own frontends,
+        // Bearer tokens for everything else; rate limits and blocked IPs/accounts.
+        $middleware->statefulApi();
+        $middleware->throttleApi('api');
+        $middleware->api(append: [GuardApiAccess::class]);
+
+        // F09: a browser session ends once its password changes on another device.
+        $middleware->authenticateSessions();
+
         $middleware->alias([
+            'password.changed' => EnsurePasswordChanged::class,
             'role' => RoleMiddleware::class,
             'permission' => PermissionMiddleware::class,
             'role_or_permission' => RoleOrPermissionMiddleware::class,
@@ -62,6 +76,8 @@ return Application::configure(basePath: dirname(__DIR__))
             $status = $response->getStatusCode();
             $debug500 = $status >= 500 && config('app.debug');
             $messages = [
+                401 => 'Please sign in to continue.',
+                402 => 'This feature is not available.',
                 403 => 'You do not have permission to do that.',
                 404 => 'That page or record could not be found.',
                 405 => 'That action is not allowed.',
@@ -82,9 +98,18 @@ return Application::configure(basePath: dirname(__DIR__))
 
                 return redirect()->back(302, [], url('/dashboard'));
             }
-            if ($request->isMethod('GET') && in_array($status, [403, 404, 500, 503], true)) {
-                return Inertia::render('error', ['status' => $status, 'message' => $custom])
+            // Full page loads get the friendly error page (resources/js/pages/error.tsx) for every
+            // status above; other requests (e.g. a form post outside Inertia) get the matching
+            // resources/views/errors/{status}.blade.php page.
+            if ($request->isMethod('GET')) {
+                $page = Inertia::render('error', ['status' => $status, 'message' => $custom])
                     ->toResponse($request)->setStatusCode($status);
+                // Keep "try again after N seconds" (429) and maintenance (503) hints.
+                if ($response->headers->has('Retry-After')) {
+                    $page->headers->set('Retry-After', $response->headers->get('Retry-After'));
+                }
+
+                return $page;
             }
 
             return $response;

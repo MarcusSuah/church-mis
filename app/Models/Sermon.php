@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Sermon extends Model
 {
@@ -61,5 +62,11 @@ class Sermon extends Model
     public function slugSource(): string
     {
         return trim((string) $this->title);
+    }
+
+    /** Photo albums for this sermon (shown in the gallery and on its page). */
+    public function galleryAlbums(): HasMany
+    {
+        return $this->hasMany(GalleryAlbum::class);
     }
 }

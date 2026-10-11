@@ -14,6 +14,7 @@ type Settings = {
     currency: string;
     exchange_rate: number;
     birthday_notifications: boolean;
+    lock_screen_minutes: number;
 };
 
 export default function ChurchSettings({ settings }: { settings: Settings }) {
@@ -27,6 +28,7 @@ export default function ChurchSettings({ settings }: { settings: Settings }) {
         currency: settings.currency ?? 'USD',
         exchange_rate: String(settings.exchange_rate ?? 190),
         birthday_notifications: settings.birthday_notifications ?? true,
+        lock_screen_minutes: String(settings.lock_screen_minutes ?? 10),
     });
     const rate = Number(form.data.exchange_rate) || 0;
 
@@ -213,6 +215,40 @@ export default function ChurchSettings({ settings }: { settings: Settings }) {
                         </span>
                     </span>
                 </label>
+            </div>
+
+            <div className="card space-y-3 p-5">
+                <h2 className="section-header flex items-center gap-2">
+                    <Icon
+                        name="LockClosedIcon"
+                        size={18}
+                        className="text-muted-foreground"
+                    />{' '}
+                    Screen lock
+                </h2>
+                <Field
+                    label="Lock the screen after this many idle minutes"
+                    error={form.errors.lock_screen_minutes}
+                >
+                    <input
+                        type="number"
+                        min={0}
+                        max={480}
+                        className={`${inputCls} max-w-40`}
+                        value={form.data.lock_screen_minutes}
+                        onChange={(e) =>
+                            form.setData('lock_screen_minutes', e.target.value)
+                        }
+                    />
+                </Field>
+                <p className="text-xs text-muted-foreground">
+                    When nobody touches the mouse or keyboard for this long,
+                    the screen locks and shows the user's photo and name. They
+                    unlock it with their password and carry on where they left
+                    off. They stay signed in. Enter 0 to turn the automatic
+                    lock off (the "Lock screen" button in the sidebar still
+                    works).
+                </p>
             </div>
 
             <div className="flex justify-end">

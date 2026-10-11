@@ -5,82 +5,45 @@ use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Laravel\Sanctum\Http\Middleware\AuthenticateSession;
 use Laravel\Sanctum\Sanctum;
 
+/*
+| Sanctum (Phase 4)
+|
+| Two ways to call /api/v1:
+|
+| 1. The church's own React app (same site): cookie sessions. The browser
+|    first calls GET /sanctum/csrf-cookie, then POST /api/v1/auth/login.
+|    Sanctum treats a request as "first-party" only when its Origin/Referer
+|    host is listed in `stateful`. Those requests get a session cookie
+|    (HttpOnly, Secure in production, SameSite=Lax) and CSRF protection.
+|    No token is ever sent to the browser.
+|
+| 2. Other clients (a future mobile app, integrations): personal access
+|    tokens from POST /api/v1/auth/login with a device_name. Each token has
+|    abilities (a subset of the user's permissions) and an expiry date.
+*/
 return [
 
-    /*
-    |--------------------------------------------------------------------------
-    | Stateful Domains
-    |--------------------------------------------------------------------------
-    |
-    | Requests from the following domains / hosts will receive stateful API
-    | authentication cookies. Typically, these should include your local
-    | and production domains which access your API via a frontend SPA.
-    |
-    */
+    // Hosts (with port when not 80/443) of the church's own frontends. Never "*".
+    // Production example: SANCTUM_STATEFUL_DOMAINS=portal.ssbc.org,admin.ssbc.org
+    'stateful' => array_values(array_filter(array_map('trim', explode(',', (string) env(
+        'SANCTUM_STATEFUL_DOMAINS',
+        env('APP_ENV') === 'production'
+            ? Sanctum::currentApplicationUrlWithPort()
+            : 'localhost,localhost:3000,localhost:5173,127.0.0.1,127.0.0.1:8000'.Sanctum::currentApplicationUrlWithPort()
+    ))))),
 
-    'stateful' => explode(',', env('SANCTUM_STATEFUL_DOMAINS', sprintf(
-        '%s%s',
-        'localhost,localhost:3000,127.0.0.1,127.0.0.1:8000,::1',
-        Sanctum::currentApplicationUrlWithPort(),
-        // Sanctum::currentRequestHost(),
-    ))),
-
-    /*
-    |--------------------------------------------------------------------------
-    | Sanctum Guards
-    |--------------------------------------------------------------------------
-    |
-    | This array contains the authentication guards that will be checked when
-    | Sanctum is trying to authenticate a request. If none of these guards
-    | are able to authenticate the request, Sanctum will use the bearer
-    | token that's present on an incoming request for authentication.
-    |
-    */
-
+    // Cookie sessions use the normal web guard (same users, same Fortify login rules).
     'guard' => ['web'],
 
-    /*
-    |--------------------------------------------------------------------------
-    | Expiration Minutes
-    |--------------------------------------------------------------------------
-    |
-    | This value controls the number of minutes until an issued token will be
-    | considered expired. This will override any values set in the token's
-    | "expires_at" attribute, but first-party sessions are not affected.
-    |
-    */
+    // Hard upper limit for every personal access token, in minutes (default 30 days).
+    // Each token also gets its own expires_at, which may be shorter.
+    'expiration' => (int) env('SANCTUM_TOKEN_EXPIRATION', 60 * 24 * 30),
 
-    // Minutes. Every API token expires; IssueApiToken caps each token at this (30 days by default).
-    'expiration' => (int) env('SANCTUM_TOKEN_EXPIRATION', 43200),
-
-    /*
-    |--------------------------------------------------------------------------
-    | Token Prefix
-    |--------------------------------------------------------------------------
-    |
-    | Sanctum can prefix new tokens in order to take advantage of numerous
-    | security scanning initiatives maintained by open source platforms
-    | that notify developers if they commit tokens into repositories.
-    |
-    | See: https://docs.github.com/en/code-security/secret-scanning/about-secret-scanning
-    |
-    */
-
-    // A recognisable prefix lets secret scanners (e.g. GitHub) detect leaked tokens.
+    // A recognisable prefix lets GitHub and other secret scanners spot leaked tokens.
     'token_prefix' => env('SANCTUM_TOKEN_PREFIX', 'ssbc_'),
 
-    /*
-    |--------------------------------------------------------------------------
-    | Sanctum Middleware
-    |--------------------------------------------------------------------------
-    |
-    | When authenticating your first-party SPA with Sanctum you may need to
-    | customize some of the middleware Sanctum uses while processing the
-    | request. You may change the middleware listed below as required.
-    |
-    */
-
     'middleware' => [
+        // Signs other cookie sessions out when the password changes (F09).
         'authenticate_session' => AuthenticateSession::class,
         'encrypt_cookies' => EncryptCookies::class,
         'validate_csrf_token' => ValidateCsrfToken::class,

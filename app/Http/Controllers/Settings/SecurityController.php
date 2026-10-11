@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Settings;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\PasswordUpdateRequest;
 use App\Http\Requests\Settings\TwoFactorAuthenticationRequest;
+use App\Support\UserSessions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
@@ -41,6 +42,9 @@ class SecurityController extends Controller
         $request->user()->update([
             'password' => $request->password,
         ]);
+
+        // F09: other browsers, remember-me cookies and API tokens stop working; this device stays signed in.
+        UserSessions::passwordChanged($request->user(), $request);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Password updated.')]);
 

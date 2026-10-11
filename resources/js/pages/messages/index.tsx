@@ -23,10 +23,17 @@ type Message = {
     subject: string;
     message: string;
     status: Status;
-    response: string | null;
-    responded_by: string | null;
-    responded_at: string | null;
+    /** Every reply sent, oldest first (kept for the record). */
+    replies: Reply[];
     created_at: string;
+};
+type Reply = {
+    id: number;
+    body: string;
+    sent_by: string;
+    sent_to: string;
+    email_sent: boolean;
+    sent_at: string | null;
 };
 type Props = {
     messages: Message[];
@@ -100,15 +107,31 @@ function Detail({
                     {message.message}
                 </p>
 
-                {message.response && (
-                    <div className="rounded-lg border-l-4 border-accent bg-muted/50 p-4">
-                        <p className="mb-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                            Reply by {message.responded_by ?? 'staff'} ·{' '}
-                            {formatDateTime(message.responded_at)}
+                {message.replies.length > 0 && (
+                    <div className="space-y-3">
+                        <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                            Conversation · {message.replies.length}{' '}
+                            {message.replies.length === 1 ? 'reply' : 'replies'}
                         </p>
-                        <p className="text-sm whitespace-pre-line text-foreground">
-                            {message.response}
-                        </p>
+                        {message.replies.map((reply, index) => (
+                            <div
+                                key={reply.id}
+                                className="rounded-lg border-l-4 border-accent bg-muted/50 p-4"
+                            >
+                                <p className="mb-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                                    Reply {index + 1} by {reply.sent_by} ·{' '}
+                                    {formatDateTime(reply.sent_at)}
+                                </p>
+                                <p className="text-sm whitespace-pre-line text-foreground">
+                                    {reply.body}
+                                </p>
+                                <p className="mt-2 text-xs text-muted-foreground">
+                                    {reply.email_sent
+                                        ? `Emailed to ${reply.sent_to}`
+                                        : `Saved, but the email to ${reply.sent_to} could not be sent`}
+                                </p>
+                            </div>
+                        ))}
                     </div>
                 )}
             </div>
@@ -119,7 +142,7 @@ function Detail({
                         htmlFor="reply"
                         className="text-xs font-medium text-muted-foreground"
                     >
-                        {message.response ? 'Send another reply' : 'Reply'} by
+                        {message.replies.length > 0 ? 'Send another reply' : 'Reply'} by
                         email to {message.email}
                     </label>
                     <textarea

@@ -15,7 +15,7 @@ class Board extends Model implements HasGroupMembers
 {
     use HasFactory, HasSlug, HasUuids;
 
-    public const TYPES = ['Trustees', 'Deacons', 'Deaconesses', 'Elders', 'Advisory', 'Pastoral', 'Other'];
+    public const TYPES = ['Trustees', 'Deacons', 'Deaconesses', 'Elders', 'Advisory', 'Pastoral', 'Finance', 'Other'];
 
     public const ROLES = ['Member', 'Chairperson', 'Vice-Chairperson', 'Secretary', 'Treasurer', 'Trustee'];
 

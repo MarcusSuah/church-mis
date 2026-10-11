@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Account;
 
 use App\Http\Controllers\Controller;
+use App\Services\ActivityLogger;
+use App\Support\UserSessions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rules\Password;
@@ -44,7 +46,10 @@ class ChangePasswordController extends Controller
             'must_change_credentials' => false,
         ])->save();
 
-        \App\Services\ActivityLogger::log($request, 'password_changed', 'Changed password', $user);
+        // F09: other browsers, remember-me cookies and API tokens stop working; this device stays signed in.
+        UserSessions::passwordChanged($user, $request);
+
+        ActivityLogger::log($request, 'password_changed', 'Changed password', $user);
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Password changed successfully!']);
 
         return redirect($this->home($request));

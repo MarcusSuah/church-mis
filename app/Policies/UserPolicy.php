@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Enums\Role as RoleEnum;
+use App\Models\Role;
 use App\Models\User;
 
 /**
@@ -59,6 +60,45 @@ class UserPolicy
     public function manageAccess(User $user, User $model): bool
     {
         return $user->id !== $model->id && $user->can('activity.manage') && self::outranks($user, $model);
+    }
+
+    /**
+     * Change which roles an account has (Phase 4, F08). You must outrank the
+     * account, cannot change your own roles, and every role you add or
+     * remove must be one you could hold yourself: not Superadmin/Admin, and
+     * no permission in it that you lack.
+     *
+     * @param  list<string>  $changedRoles  roles being added or removed
+     */
+    public function assignRoles(User $user, User $model, array $changedRoles = []): bool
+    {
+        if ($user->id === $model->id || ! $user->can('users.update') || ! self::outranks($user, $model)) {
+            return false;
+        }
+
+        foreach ($changedRoles as $name) {
+            if (! self::canGiveRole($user, $name)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /** Whether $actor may give (or take away) this role. */
+    public static function canGiveRole(User $actor, string $roleName): bool
+    {
+        $role = Role::findByName($roleName, 'web');
+
+        // Superadmin/Admin: only a Superadmin may give or remove them. Compare the
+        // stored name, so "admin" typed in lower case can't slip past (MySQL
+        // compares names case-insensitively).
+        if (in_array($role->name, RoleEnum::protected(), true) && ! $actor->hasRole(RoleEnum::SUPERADMIN->value)) {
+            return false;
+        }
+
+        // Token-aware ceiling: every permission in the role must pass the Gate.
+        return RolePolicy::holdsAll($actor, $role->permissions->pluck('name')->all());
     }
 
     public function restore(User $user, User $model): bool

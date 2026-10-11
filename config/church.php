@@ -19,21 +19,15 @@ return [
     'service_sunday_worship' => 'Sundays, 10:00 AM',
     'service_bible_study' => 'Wednesdays, 6:00 PM',
     'service_prayer_meeting' => 'Fridays, 6:00 PM',
-    // About page: heading over "Our story" and up to three photos (uploaded under System → Website).
-    'about_heading' => 'A heritage of faith',
-    'about_image_1' => null,
-    'about_image_2' => null,
-    'about_image_3' => null,
-    'about_caption_1' => null,
-    'about_caption_2' => null,
-    'about_caption_3' => null,
-    'contact_intro' => 'We would love to hear from you. Send us a message and the church office will reply by email.',
     // Default currency (USD or LRD). Admins can change it under Church Settings.
     'currency' => env('CHURCH_CURRENCY', 'USD'),
     // How many Liberian dollars make one US dollar (editable in Church Settings).
     'exchange_rate' => env('CHURCH_EXCHANGE_RATE', 190),
     'logo_url' => env('CHURCH_LOGO_URL'),
     'birthday_notifications' => env('CHURCH_BIRTHDAY_NOTIFICATIONS', true),
+
+    // Lock the screen after this many idle minutes (0 = never). Admins change it in Church Settings.
+    'lock_screen_minutes' => (int) env('LOCK_SCREEN_MINUTES', 10),
     'senior_pastor' => env('CHURCH_SENIOR_PASTOR', 'Senior Pastor'),
     'church_secretary' => env('CHURCH_SECRETARY'),
 
@@ -44,6 +38,12 @@ return [
     'login_attempts_per_minute' => env('CHURCH_LOGIN_ATTEMPTS_PER_MINUTE', 5),
     'login_attempts_per_hour' => env('CHURCH_LOGIN_ATTEMPTS_PER_HOUR', 30),
     'max_sessions' => env('CHURCH_MAX_SESSIONS', 3),
+
+    // API tokens (Phase 4). Tokens are for non-browser clients (a mobile app,
+    // integrations); the church's own web app uses cookie sessions instead.
+    'api_tokens_enabled' => (bool) env('CHURCH_API_TOKENS', true),
+    'api_token_days' => (int) env('CHURCH_API_TOKEN_DAYS', 30),       // default lifetime
+    'api_max_tokens' => (int) env('CHURCH_API_MAX_TOKENS', 10),       // per user; oldest are revoked
 
     /*
     | Member logins have no default password. An approved member is emailed a
