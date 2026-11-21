@@ -35,6 +35,7 @@ type Doc = {
     has_file: boolean;
     external_url: string | null;
     created_at: string;
+    updated_at: string;
 };
 type Stats = {
     total: number;

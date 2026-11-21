@@ -6,6 +6,9 @@ import { initializeTheme } from '@/hooks/use-appearance';
 import AppLayout from '@/layouts/app-layout';
 import AuthLayout from '@/layouts/auth-layout';
 import SettingsLayout from '@/layouts/settings/layout';
+// ─── Trix ────────────────────────────────────────────────────────────────────
+import 'trix';
+import 'trix/dist/trix.css';
 
 const appName = import.meta.env.VITE_APP_NAME || 'SSBC';
 

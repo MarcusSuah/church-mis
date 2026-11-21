@@ -19,6 +19,10 @@ import { safeUrl } from '@/lib/safe-url';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatDate, useSite } from '@/lib/site';
 
+// ─── Trix ────────────────────────────────────────────────────────────────────
+import 'trix';
+import 'trix/dist/trix.css';
+
 type Slide = {
     id: number;
     eyebrow: string | null;

@@ -34,3 +34,15 @@ php artisan up
 git remote add origin https://github.com/MarcusSuah/church-mis.git
 git branch -M main
 git push -u origin main
+
+
+
+
+
+
+
+
+
+
+
+The Permission edit modal is not working

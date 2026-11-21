@@ -36,7 +36,7 @@ export default function Icon({
             <QuestionMarkCircleIcon
                 width={size}
                 height={size}
-                className={`text-gray-400 ${disabled ? 'cursor-not-allowed opacity-50' : ''} ${className}`}
+                className={`text-gray-100 ${disabled ? 'cursor-not-allowed opacity-50' : ''} ${className}`}
                 onClick={disabled ? undefined : onClick}
                 {...props}
             />
