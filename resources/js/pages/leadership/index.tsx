@@ -458,7 +458,7 @@ function ProfileModal({
                                 <img
                                     src={l.photo_url}
                                     alt=""
-                                    className="absolute inset-0 h-full w-full object-contain"
+                                    className="absolute inset-0 h-full w-full  object-cover object-top"
                                 />
                             </>
                         ) : (
@@ -821,11 +821,11 @@ function MemberPicker({
         const s = q.toLowerCase();
         return s
             ? options.filter(
-                  (m) =>
-                      `${m.first_name} ${m.last_name}`
-                          .toLowerCase()
-                          .includes(s) || m.email?.toLowerCase().includes(s),
-              )
+                (m) =>
+                    `${m.first_name} ${m.last_name}`
+                        .toLowerCase()
+                        .includes(s) || m.email?.toLowerCase().includes(s),
+            )
             : options;
     }, [options, q]);
 

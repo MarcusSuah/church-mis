@@ -7,7 +7,7 @@ import { PageHeader, PublicLayout } from '@/components/site/PublicLayout';
 import { formatDate, useSite } from '@/lib/site';
 
 type Album = {
-    id: number;
+    id: number | string;
     title: string;
     description: string | null;
     event_date: string | null;

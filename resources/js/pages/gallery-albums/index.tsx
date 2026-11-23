@@ -25,7 +25,7 @@ import {
     store as storePhotos,
     update as updatePhoto,
 } from '@/routes/gallery-albums/photos';
-
+import RichTextEditor from '@/components/ssbcms/RichTextEditor';
 type Photo = {
     id: number;
     url: string;
@@ -134,14 +134,9 @@ function AlbumEditor({
                     />
                 </Field>
                 <Field label="Description" error={form.errors.description} span>
-                    <textarea
-                        rows={3}
-                        className={inputCls}
+                    <RichTextEditor
                         value={form.data.description}
-                        onChange={(e) =>
-                            form.setData('description', e.target.value)
-                        }
-                        maxLength={2000}
+                        onChange={(html) => form.setData('description', html)}
                     />
                 </Field>
                 <Field label="Date" error={form.errors.event_date}>
@@ -456,7 +451,7 @@ export default function GalleryAlbums({ albums, options, maxPhotos }: Props) {
                                 <p className="mt-1 text-xs text-muted-foreground">
                                     {[
                                         a.event_date &&
-                                            formatShortDate(a.event_date),
+                                        formatShortDate(a.event_date),
                                         a.sermon && `Sermon: ${a.sermon}`,
                                         a.event && `Event: ${a.event}`,
                                         a.department,

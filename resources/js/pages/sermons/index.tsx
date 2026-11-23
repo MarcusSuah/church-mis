@@ -19,8 +19,11 @@ import {
 } from 'lucide-react';
 import type { KeyboardEvent, ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
+
 import ConfirmModal from '@/components/ssbcms/ConfirmModal';
 import ImageUploadField from '@/components/ssbcms/ImageUploadField';
+import RichText from '@/components/ssbcms/RichText';
+import RichTextEditor from '@/components/ssbcms/RichTextEditor';
 import {
     destroy,
     index,
@@ -39,6 +42,8 @@ type Sermon = {
     description: string | null;
     sermon_date: string;
     service_type: string;
+    service_session: string | null;
+    service_label: string;
     audio_url: string | null;
     video_url: string | null;
     notes_url: string | null;
@@ -51,22 +56,31 @@ type Sermon = {
 
 type Props = {
     sermons: Sermon[];
-    stats: { total: number; published: number; views: number; series: number };
+    stats: {
+        total: number;
+        published: number;
+        views: number;
+        series: number;
+    };
     seriesOptions: string[];
     speakerOptions: string[];
-    serviceTypes: string[];
-    can: { create: boolean; update: boolean; delete: boolean };
+    serviceTypes: Record<string, string>;
+    serviceSessions: Record<string, string>;
+    can: {
+        create: boolean;
+        update: boolean;
+        delete: boolean;
+    };
 };
 
-const formatDate = (d: string) =>
-    new Date(`${d}T00:00:00Z`).toLocaleDateString('en-US', {
+const formatDate = (date: string) =>
+    new Date(`${date}T00:00:00Z`).toLocaleDateString('en-US', {
         month: 'long',
         day: 'numeric',
         year: 'numeric',
         timeZone: 'UTC',
     });
 
-/** Image that falls back to an icon tile when the URL is missing or broken. */
 function Img({
     src,
     className,
@@ -77,8 +91,13 @@ function Img({
     fallback: ReactNode;
 }) {
     const [failed, setFailed] = useState(false);
+
     useEffect(() => setFailed(false), [src]);
-    if (!src || failed) return <>{fallback}</>;
+
+    if (!src || failed) {
+        return <>{fallback}</>;
+    }
+
     return (
         <img
             src={src}
@@ -89,7 +108,13 @@ function Img({
     );
 }
 
-function SpeakerAvatar({ src, size }: { src: string | null; size: string }) {
+function SpeakerAvatar({
+    src,
+    size,
+}: {
+    src: string | null;
+    size: string;
+}) {
     return (
         <Img
             src={src}
@@ -107,11 +132,11 @@ function SpeakerAvatar({ src, size }: { src: string | null; size: string }) {
 
 const dot = <span className="text-border">·</span>;
 
-/** POST the view to the server (counted once per browser session). */
 function recordView(id: string) {
     const xsrf = decodeURIComponent(
         document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/)?.[1] ?? '',
     );
+
     return fetch(viewRoute.url(id), {
         method: 'POST',
         headers: {
@@ -121,7 +146,7 @@ function recordView(id: string) {
         },
         credentials: 'same-origin',
     })
-        .then((r) => (r.ok ? r.json() : null))
+        .then((response) => (response.ok ? response.json() : null))
         .catch(() => null) as Promise<{ view_count: number } | null>;
 }
 
@@ -131,49 +156,71 @@ export default function Sermons({
     seriesOptions,
     speakerOptions,
     serviceTypes,
+    serviceSessions,
     can,
 }: Props) {
     const [search, setSearch] = useState('');
-    const [serviceFilter, setServiceFilter] = useState('All');
+    const [serviceFilter, setServiceFilter] = useState('all');
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [editing, setEditing] = useState<Sermon | 'new' | null>(null);
     const [deleting, setDeleting] = useState<Sermon | null>(null);
     const [busy, setBusy] = useState(false);
     const [viewCounts, setViewCounts] = useState<Record<string, number>>({});
 
-    const views = (s: Sermon) => viewCounts[s.id] ?? s.view_count;
-    const selected = sermons.find((s) => s.id === selectedId) ?? null;
+    const views = (sermon: Sermon) =>
+        viewCounts[sermon.id] ?? sermon.view_count;
+
+    const selected =
+        sermons.find((sermon) => sermon.id === selectedId) ?? null;
 
     const filtered = useMemo(() => {
-        const q = search.toLowerCase();
-        return sermons.filter((s) => {
-            const matchService =
-                serviceFilter === 'All' || s.service_type === serviceFilter;
-            const matchSearch =
-                !q ||
-                s.title.toLowerCase().includes(q) ||
-                s.speaker_name.toLowerCase().includes(q) ||
-                s.series_name?.toLowerCase().includes(q) ||
-                s.scripture_reference?.toLowerCase().includes(q) ||
-                s.tags.some((t) => t.includes(q));
-            return matchService && matchSearch;
+        const query = search.toLowerCase().trim();
+
+        return sermons.filter((sermon) => {
+            const matchesService =
+                serviceFilter === 'all' ||
+                sermon.service_type === serviceFilter;
+
+            const matchesSearch =
+                !query ||
+                sermon.title.toLowerCase().includes(query) ||
+                sermon.speaker_name.toLowerCase().includes(query) ||
+                sermon.service_label.toLowerCase().includes(query) ||
+                sermon.series_name?.toLowerCase().includes(query) ||
+                sermon.scripture_reference?.toLowerCase().includes(query) ||
+                sermon.tags.some((tag) => tag.includes(query));
+
+            return matchesService && matchesSearch;
         });
     }, [sermons, search, serviceFilter]);
 
-    const open = (s: Sermon) => {
-        setSelectedId(s.id);
-        recordView(s.id).then(
-            (r) => r && setViewCounts((v) => ({ ...v, [s.id]: r.view_count })),
-        );
+    const open = (sermon: Sermon) => {
+        setSelectedId(sermon.id);
+
+        recordView(sermon.id).then((response) => {
+            if (response) {
+                setViewCounts((current) => ({
+                    ...current,
+                    [sermon.id]: response.view_count,
+                }));
+            }
+        });
     };
 
     const confirmDelete = () => {
-        if (!deleting) return;
+        if (!deleting) {
+            return;
+        }
+
         setBusy(true);
+
         router.delete(destroy.url(deleting.id), {
             preserveScroll: true,
             onSuccess: () => {
-                if (selectedId === deleting.id) setSelectedId(null);
+                if (selectedId === deleting.id) {
+                    setSelectedId(null);
+                }
+
                 setDeleting(null);
             },
             onFinish: () => setBusy(false),
@@ -183,8 +230,11 @@ export default function Sermons({
     const totalViews =
         stats.views +
         Object.entries(viewCounts).reduce(
-            (n, [id, c]) =>
-                n + c - (sermons.find((s) => s.id === id)?.view_count ?? c),
+            (total, [id, count]) =>
+                total +
+                count -
+                (sermons.find((sermon) => sermon.id === id)?.view_count ??
+                    count),
             0,
         );
 
@@ -219,16 +269,17 @@ export default function Sermons({
         <div className="flex-1 space-y-6 p-4 md:p-6">
             <Head title="Sermons" />
 
-            {/* Header */}
             <div className="flex items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-foreground">
                         Sermons
                     </h1>
+
                     <p className="mt-0.5 text-sm text-muted-foreground">
                         Manage sermon recordings, notes, and archives
                     </p>
                 </div>
+
                 {can.create && (
                     <button
                         type="button"
@@ -241,82 +292,103 @@ export default function Sermons({
                 )}
             </div>
 
-            {/* KPI cards */}
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                {kpis.map((k) => (
+                {kpis.map((item) => (
                     <div
-                        key={k.label}
+                        key={item.label}
                         className="card flex items-center gap-4 p-5"
                     >
-                        <k.Icon className={`size-5 shrink-0 ${k.color}`} />
+                        <item.Icon
+                            className={`size-5 shrink-0 ${item.color}`}
+                        />
+
                         <div>
                             <p className="text-2xl font-bold text-foreground tabular-nums">
-                                {k.value}
+                                {item.value}
                             </p>
+
                             <p className="text-xs text-muted-foreground">
-                                {k.label}
+                                {item.label}
                             </p>
                         </div>
                     </div>
                 ))}
             </div>
 
-            {/* Filters */}
             <div className="flex flex-wrap gap-3">
                 <div className="relative min-w-[200px] flex-1">
                     <Search
                         size={16}
                         className="absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground"
                     />
+
                     <input
                         value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Search sermons, speakers, series..."
+                        onChange={(event) => setSearch(event.target.value)}
+                        placeholder="Search sermons, speakers, services, series..."
                         className="w-full rounded-lg border border-border bg-card py-2 pr-4 pl-9 text-sm text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/30 focus:outline-none"
                     />
                 </div>
+
                 <select
                     value={serviceFilter}
-                    onChange={(e) => setServiceFilter(e.target.value)}
+                    onChange={(event) =>
+                        setServiceFilter(event.target.value)
+                    }
                     className="min-w-40 rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:outline-none"
                     aria-label="Filter by service type"
                 >
-                    {['All', ...serviceTypes].map((t) => (
-                        <option key={t}>{t}</option>
+                    <option value="all">All Services</option>
+
+                    {Object.entries(serviceTypes).map(([value, label]) => (
+                        <option key={value} value={value}>
+                            {label}
+                        </option>
                     ))}
                 </select>
             </div>
 
-            {/* List */}
             {filtered.length === 0 ? (
                 <div className="py-16 text-center text-muted-foreground">
                     <Mic size={40} className="mx-auto mb-3 opacity-30" />
+
                     <p className="font-medium">No sermons found</p>
+
                     {can.create && sermons.length === 0 && (
                         <button
                             type="button"
                             onClick={() => setEditing('new')}
                             className="btn-primary mt-4 text-sm"
                         >
-                            <Plus size={16} /> Add Sermon
+                            <Plus size={16} />
+                            Add Sermon
                         </button>
                     )}
                 </div>
             ) : (
                 <div className="space-y-3">
-                    {filtered.map((s) => (
+                    {filtered.map((sermon) => (
                         <div
-                            key={s.id}
-                            className="card flex gap-4 p-4 transition-shadow hover:shadow-sm"
+                            key={sermon.id}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => open(sermon)}
+                            onKeyDown={(event) => {
+                                if (event.key === 'Enter' || event.key === ' ') {
+                                    event.preventDefault();
+                                    open(sermon);
+                                }
+                            }}
+                            className="card flex cursor-pointer gap-4 p-4 transition-all duration-200 hover:shadow-md hover:border-primary/30"
                         >
                             <button
                                 type="button"
-                                onClick={() => open(s)}
+                                onClick={() => open(sermon)}
                                 className="relative h-[72px] w-28 shrink-0 overflow-hidden rounded-lg bg-muted"
-                                aria-label={`Open ${s.title}`}
+                                aria-label={`Open ${sermon.title}`}
                             >
                                 <Img
-                                    src={s.thumbnail_url}
+                                    src={sermon.thumbnail_url}
                                     className="h-full w-full object-cover"
                                     fallback={
                                         <span className="flex h-full w-full items-center justify-center bg-primary/10">
@@ -327,7 +399,8 @@ export default function Sermons({
                                         </span>
                                     }
                                 />
-                                {!s.is_published && (
+
+                                {!sermon.is_published && (
                                     <span className="absolute inset-0 flex items-center justify-center bg-black/50 text-xs font-medium text-white">
                                         Draft
                                     </span>
@@ -339,33 +412,40 @@ export default function Sermons({
                                     <div className="min-w-0">
                                         <h3
                                             className="line-clamp-1 cursor-pointer text-sm leading-snug font-semibold text-foreground hover:text-primary"
-                                            onClick={() => open(s)}
+                                            onClick={() => open(sermon)}
                                         >
-                                            {s.title}
+                                            {sermon.title}
                                         </h3>
-                                        {s.series_name && (
+
+                                        {sermon.series_name && (
                                             <p className="mt-0.5 text-xs text-primary/80">
-                                                {s.series_name}
+                                                {sermon.series_name}
                                             </p>
                                         )}
                                     </div>
+
                                     <div className="flex shrink-0 gap-1">
                                         {can.update && (
                                             <button
                                                 type="button"
-                                                onClick={() => setEditing(s)}
+                                                onClick={() =>
+                                                    setEditing(sermon)
+                                                }
                                                 className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                                                aria-label={`Edit ${s.title}`}
+                                                aria-label={`Edit ${sermon.title}`}
                                             >
                                                 <Pencil size={13} />
                                             </button>
                                         )}
+
                                         {can.delete && (
                                             <button
                                                 type="button"
-                                                onClick={() => setDeleting(s)}
+                                                onClick={() =>
+                                                    setDeleting(sermon)
+                                                }
                                                 className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-danger/10 hover:text-danger"
-                                                aria-label={`Delete ${s.title}`}
+                                                aria-label={`Delete ${sermon.title}`}
                                             >
                                                 <Trash2 size={13} />
                                             </button>
@@ -376,53 +456,71 @@ export default function Sermons({
                                 <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                                     <span className="flex items-center gap-1.5">
                                         <SpeakerAvatar
-                                            src={s.speaker_photo}
+                                            src={sermon.speaker_photo}
                                             size="size-5"
                                         />
-                                        {s.speaker_name}
+
+                                        {sermon.speaker_name}
                                     </span>
+
                                     {dot}
-                                    <span>{formatDate(s.sermon_date)}</span>
+
+                                    <span>
+                                        {formatDate(sermon.sermon_date)}
+                                    </span>
+
                                     {dot}
+
                                     <span className="rounded-full bg-muted px-1.5 py-0.5">
-                                        {s.service_type}
+                                        {sermon.service_label}
                                     </span>
-                                    {s.scripture_reference && (
+
+                                    {sermon.scripture_reference && (
                                         <>
                                             {dot}
+
                                             <span className="italic">
-                                                {s.scripture_reference}
+                                                {sermon.scripture_reference}
                                             </span>
                                         </>
                                     )}
-                                    {s.duration_minutes && (
+
+                                    {sermon.duration_minutes && (
                                         <>
                                             {dot}
+
                                             <span>
-                                                {s.duration_minutes} min
+                                                {sermon.duration_minutes} min
                                             </span>
                                         </>
                                     )}
+
                                     {dot}
+
                                     <span className="flex items-center gap-1">
                                         <Eye size={11} />
-                                        {views(s).toLocaleString()}
+
+                                        {views(sermon).toLocaleString()}
                                     </span>
                                 </div>
 
-                                {s.tags.length > 0 && (
+                                {sermon.tags.length > 0 && (
                                     <div className="mt-2 flex flex-wrap gap-1">
-                                        {s.tags.slice(0, 4).map((t) => (
-                                            <button
-                                                type="button"
-                                                key={t}
-                                                onClick={() => setSearch(t)}
-                                                className="rounded-full bg-primary/10 px-1.5 py-0.5 text-xs text-primary hover:bg-primary/20"
-                                                title={`Show sermons tagged "${t}"`}
-                                            >
-                                                {t}
-                                            </button>
-                                        ))}
+                                        {sermon.tags
+                                            .slice(0, 4)
+                                            .map((tag) => (
+                                                <button
+                                                    type="button"
+                                                    key={tag}
+                                                    onClick={() =>
+                                                        setSearch(tag)
+                                                    }
+                                                    className="rounded-full bg-primary/10 px-1.5 py-0.5 text-xs text-primary hover:bg-primary/20"
+                                                    title={`Show sermons tagged "${tag}"`}
+                                                >
+                                                    {tag}
+                                                </button>
+                                            ))}
                                     </div>
                                 )}
                             </div>
@@ -449,6 +547,7 @@ export default function Sermons({
                 <SermonModal
                     sermon={editing === 'new' ? null : editing}
                     serviceTypes={serviceTypes}
+                    serviceSessions={serviceSessions}
                     seriesOptions={seriesOptions}
                     speakerOptions={speakerOptions}
                     onClose={() => setEditing(null)}
@@ -473,10 +572,8 @@ export default function Sermons({
     );
 }
 
-/* ------------------------------------------------------------------ */
-
 function SermonDrawer({
-    sermon: s,
+    sermon,
     views,
     can,
     onClose,
@@ -491,17 +588,35 @@ function SermonDrawer({
     onDelete: () => void;
 }) {
     useEffect(() => {
-        const esc = (e: globalThis.KeyboardEvent) =>
-            e.key === 'Escape' && onClose();
-        window.addEventListener('keydown', esc);
-        return () => window.removeEventListener('keydown', esc);
+        const handleEscape = (event: globalThis.KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                onClose();
+            }
+        };
+
+        window.addEventListener('keydown', handleEscape);
+
+        return () =>
+            window.removeEventListener('keydown', handleEscape);
     }, [onClose]);
 
     const resources = [
-        { url: s.audio_url, label: 'Audio Recording', Icon: Music },
-        { url: s.video_url, label: 'Video Recording', Icon: Video },
-        { url: s.notes_url, label: 'Sermon Notes', Icon: FileText },
-    ].filter((r) => r.url);
+        {
+            url: sermon.audio_url,
+            label: 'Audio Recording',
+            Icon: Music,
+        },
+        {
+            url: sermon.video_url,
+            label: 'Video Recording',
+            Icon: Video,
+        },
+        {
+            url: sermon.notes_url,
+            label: 'Sermon Notes',
+            Icon: FileText,
+        },
+    ].filter((resource) => resource.url);
 
     return (
         <div
@@ -509,19 +624,28 @@ function SermonDrawer({
             role="dialog"
             aria-modal="true"
         >
-            <div className="flex-1 bg-black/40 fade-in" onClick={onClose} />
+            <div
+                className="flex-1 bg-black/40 fade-in"
+                onClick={onClose}
+            />
+
             <div className="slide-up w-full max-w-lg overflow-y-auto border-l border-border bg-background">
                 <div className="relative h-48 bg-muted">
                     <Img
-                        src={s.thumbnail_url}
+                        src={sermon.thumbnail_url}
                         className="h-full w-full object-cover"
                         fallback={
                             <span className="flex h-full w-full items-center justify-center bg-primary/10">
-                                <Mic size={48} className="text-primary/40" />
+                                <Mic
+                                    size={48}
+                                    className="text-primary/40"
+                                />
                             </span>
                         }
                     />
+
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+
                     <button
                         type="button"
                         onClick={onClose}
@@ -530,27 +654,35 @@ function SermonDrawer({
                     >
                         <X size={18} />
                     </button>
+
                     <div className="absolute right-4 bottom-4 left-4">
-                        {s.series_name && (
+                        {sermon.series_name && (
                             <p className="mb-1 text-xs text-white/70">
-                                {s.series_name}
+                                {sermon.series_name}
                             </p>
                         )}
+
                         <h2 className="text-base leading-tight font-bold text-white">
-                            {s.title}
+                            {sermon.title}
                         </h2>
                     </div>
                 </div>
 
                 <div className="space-y-4 p-5">
                     <div className="flex items-center gap-3 rounded-xl bg-muted/50 p-3">
-                        <SpeakerAvatar src={s.speaker_photo} size="size-12" />
+                        <SpeakerAvatar
+                            src={sermon.speaker_photo}
+                            size="size-12"
+                        />
+
                         <div>
                             <p className="text-sm font-semibold text-foreground">
-                                {s.speaker_name}
+                                {sermon.speaker_name}
                             </p>
+
                             <p className="text-xs text-muted-foreground">
-                                {s.service_type} · {formatDate(s.sermon_date)}
+                                {sermon.service_label} ·{' '}
+                                {formatDate(sermon.sermon_date)}
                             </p>
                         </div>
                     </div>
@@ -560,13 +692,14 @@ function SermonDrawer({
                             {
                                 Icon: BookOpen,
                                 label: 'Scripture',
-                                value: s.scripture_reference || '—',
+                                value:
+                                    sermon.scripture_reference || '—',
                             },
                             {
                                 Icon: Clock,
                                 label: 'Duration',
-                                value: s.duration_minutes
-                                    ? `${s.duration_minutes} min`
+                                value: sermon.duration_minutes
+                                    ? `${sermon.duration_minutes} min`
                                     : '—',
                             },
                             {
@@ -577,7 +710,9 @@ function SermonDrawer({
                             {
                                 Icon: CheckCircle2,
                                 label: 'Status',
-                                value: s.is_published ? 'Published' : 'Draft',
+                                value: sermon.is_published
+                                    ? 'Published'
+                                    : 'Draft',
                             },
                         ].map((item) => (
                             <div
@@ -589,10 +724,12 @@ function SermonDrawer({
                                         size={12}
                                         className="text-muted-foreground"
                                     />
+
                                     <span className="text-xs text-muted-foreground">
                                         {item.label}
                                     </span>
                                 </div>
+
                                 <p className="text-sm font-medium text-foreground">
                                     {item.value}
                                 </p>
@@ -600,29 +737,32 @@ function SermonDrawer({
                         ))}
                     </div>
 
-                    {s.description && (
+                    {sermon.description && (
                         <div>
                             <h4 className="mb-1.5 text-sm font-semibold text-foreground">
                                 Description
                             </h4>
-                            <p className="text-sm leading-relaxed whitespace-pre-line text-muted-foreground">
-                                {s.description}
-                            </p>
+
+                            <RichText
+                                html={sermon.description}
+                                className="text-sm text-muted-foreground"
+                            />
                         </div>
                     )}
 
-                    {s.tags.length > 0 && (
+                    {sermon.tags.length > 0 && (
                         <div>
                             <h4 className="mb-2 text-sm font-semibold text-foreground">
                                 Tags
                             </h4>
+
                             <div className="flex flex-wrap gap-1.5">
-                                {s.tags.map((t) => (
+                                {sermon.tags.map((tag) => (
                                     <span
-                                        key={t}
+                                        key={tag}
                                         className="rounded-full bg-primary/10 px-2 py-1 text-xs text-primary"
                                     >
-                                        {t}
+                                        {tag}
                                     </span>
                                 ))}
                             </div>
@@ -634,20 +774,22 @@ function SermonDrawer({
                             <h4 className="mb-2 text-sm font-semibold text-foreground">
                                 Resources
                             </h4>
+
                             <div className="space-y-2">
-                                {resources.map((r) => (
+                                {resources.map((resource) => (
                                     <a
-                                        key={r.label}
-                                        href={r.url!}
+                                        key={resource.label}
+                                        href={resource.url!}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="flex items-center gap-2 rounded-lg bg-muted p-2.5 text-sm text-foreground hover:bg-muted/80"
                                     >
-                                        <r.Icon
+                                        <resource.Icon
                                             size={16}
                                             className="text-primary"
                                         />
-                                        {r.label}
+
+                                        {resource.label}
                                     </a>
                                 ))}
                             </div>
@@ -666,6 +808,7 @@ function SermonDrawer({
                                     Edit Sermon
                                 </button>
                             )}
+
                             {can.delete && (
                                 <button
                                     type="button"
@@ -684,22 +827,23 @@ function SermonDrawer({
     );
 }
 
-/* ------------------------------------------------------------------ */
-
 function SermonModal({
     sermon,
     serviceTypes,
+    serviceSessions,
     seriesOptions,
     speakerOptions,
     onClose,
 }: {
     sermon: Sermon | null;
-    serviceTypes: string[];
+    serviceTypes: Record<string, string>;
+    serviceSessions: Record<string, string>;
     seriesOptions: string[];
     speakerOptions: string[];
     onClose: () => void;
 }) {
     const [tagDraft, setTagDraft] = useState('');
+
     const form = useForm({
         title: sermon?.title ?? '',
         speaker_name: sermon?.speaker_name ?? '',
@@ -708,13 +852,13 @@ function SermonModal({
         scripture_reference: sermon?.scripture_reference ?? '',
         description: sermon?.description ?? '',
         sermon_date:
-            sermon?.sermon_date ?? new Date().toISOString().slice(0, 10),
-        service_type: sermon?.service_type ?? 'Sunday Worship',
-
+            sermon?.sermon_date ??
+            new Date().toISOString().slice(0, 10),
+        service_type: sermon?.service_type ?? 'sunday_worship',
+        service_session: sermon?.service_session ?? '',
         audio_file: null as File | null,
         video_file: null as File | null,
         notes_file: null as File | null,
-
         thumbnail_url: sermon?.thumbnail_url ?? '',
         duration_minutes: sermon?.duration_minutes
             ? String(sermon.duration_minutes)
@@ -726,22 +870,24 @@ function SermonModal({
     const addTags = (raw: string) => {
         const next = raw
             .split(',')
-            .map((t) => t.trim().toLowerCase())
+            .map((tag) => tag.trim().toLowerCase())
             .filter(Boolean);
-        if (next.length)
-            form.setData(
-                'tags',
-                Array.from(new Set([...form.data.tags, ...next])),
-            );
+
+        if (next.length) {
+            form.setData('tags', [
+                ...new Set([...form.data.tags, ...next]),
+            ]);
+        }
+
         setTagDraft('');
     };
 
-    const onTagKey = (e: KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter' || e.key === ',') {
-            e.preventDefault();
+    const onTagKey = (event: KeyboardEvent<HTMLInputElement>) => {
+        if (event.key === 'Enter' || event.key === ',') {
+            event.preventDefault();
             addTags(tagDraft);
         } else if (
-            e.key === 'Backspace' &&
+            event.key === 'Backspace' &&
             !tagDraft &&
             form.data.tags.length
         ) {
@@ -751,61 +897,81 @@ function SermonModal({
 
     const save = () => {
         const pendingTags = tagDraft.trim()
-            ? Array.from(
-                  new Set([
-                      ...form.data.tags,
-                      ...tagDraft
-                          .split(',')
-                          .map((t) => t.trim().toLowerCase())
-                          .filter(Boolean),
-                  ]),
-              )
+            ? [
+                ...new Set([
+                    ...form.data.tags,
+                    ...tagDraft
+                        .split(',')
+                        .map((tag) => tag.trim().toLowerCase())
+                        .filter(Boolean),
+                ]),
+            ]
             : form.data.tags;
-        // Files go as multipart/form-data; PHP only parses that for POST, so updates spoof PATCH with _method.
-        form.transform((d) => ({
-            ...d,
+
+        form.transform((data) => ({
+            ...data,
             tags: pendingTags,
-            duration_minutes: d.duration_minutes
-                ? Number(d.duration_minutes)
+            duration_minutes: data.duration_minutes
+                ? Number(data.duration_minutes)
                 : null,
+            service_session:
+                data.service_type === 'sunday_worship'
+                    ? data.service_session || null
+                    : null,
             ...(sermon ? { _method: 'patch' } : {}),
         }));
-        const opts = {
+
+        const options = {
             preserveScroll: true,
             forceFormData: true,
             onSuccess: onClose,
         };
-        if (sermon) form.post(update.url(sermon.id), opts);
-        else form.post(store.url(), opts);
+
+        if (sermon) {
+            form.post(update.url(sermon.id), options);
+        } else {
+            form.post(store.url(), options);
+        }
     };
 
-    const label = 'mb-1 block text-xs font-medium text-muted-foreground';
-    const err = (k: string) =>
-        (form.errors as Record<string, string>)[k] && (
+    const label =
+        'mb-1 block text-xs font-medium text-muted-foreground';
+
+    const error = (field: string) =>
+        (form.errors as Record<string, string>)[field] && (
             <p className="error-text">
-                {(form.errors as Record<string, string>)[k]}
+                {(form.errors as Record<string, string>)[field]}
             </p>
         );
-    const text = (
-        k: 'title' | 'speaker_name' | 'series_name' | 'scripture_reference',
-        l: string,
+
+    const textField = (
+        field:
+            | 'title'
+            | 'speaker_name'
+            | 'series_name'
+            | 'scripture_reference',
+        labelText: string,
         placeholder: string,
         list?: string,
     ) => (
         <div>
-            <label className={label}>{l}</label>
+            <label className={label}>{labelText}</label>
+
             <input
-                value={form.data[k]}
-                onChange={(e) => form.setData(k, e.target.value)}
+                value={form.data[field]}
+                onChange={(event) =>
+                    form.setData(field, event.target.value)
+                }
                 placeholder={placeholder}
                 list={list}
                 className="input-field"
             />
-            {err(k)}
+
+            {error(field)}
         </div>
     );
 
-    const valid =
+    const isValid =
         form.data.title.trim() &&
         form.data.speaker_name.trim() &&
         form.data.sermon_date;
@@ -816,12 +982,17 @@ function SermonModal({
             role="dialog"
             aria-modal="true"
         >
-            <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+            <div
+                className="absolute inset-0 bg-black/50"
+                onClick={onClose}
+            />
+
             <div className="scale-in relative flex max-h-[90vh] w-full max-w-2xl flex-col rounded-2xl border border-border bg-background shadow-xl">
                 <div className="flex items-center justify-between border-b border-border p-5">
                     <h2 className="text-lg font-bold text-foreground">
                         {sermon ? 'Edit Sermon' : 'Add Sermon'}
                     </h2>
+
                     <button
                         type="button"
                         onClick={onClose}
@@ -833,68 +1004,154 @@ function SermonModal({
                 </div>
 
                 <div className="scrollbar-thin space-y-4 overflow-y-auto p-5">
-                    {text('title', 'Sermon Title *', 'Sermon title')}
+                    {textField(
+                        'title',
+                        'Sermon Title *',
+                        'Sermon title',
+                    )}
+
                     <div className="grid grid-cols-2 gap-3">
-                        {text(
+                        {textField(
                             'speaker_name',
                             'Speaker Name *',
                             'Speaker name',
                             'sermon-speakers',
                         )}
+
                         <div>
-                            <label className={label}>Sermon Date *</label>
+                            <label className={label}>
+                                Sermon Date *
+                            </label>
+
                             <input
                                 type="date"
                                 value={form.data.sermon_date}
-                                onChange={(e) =>
-                                    form.setData('sermon_date', e.target.value)
+                                onChange={(event) =>
+                                    form.setData(
+                                        'sermon_date',
+                                        event.target.value,
+                                    )
                                 }
                                 className="input-field"
                             />
-                            {err('sermon_date')}
+
+                            {error('sermon_date')}
                         </div>
                     </div>
+
                     <div className="grid grid-cols-2 gap-3">
                         <div>
-                            <label className={label}>Service Type</label>
+                            <label className={label}>
+                                Service Type *
+                            </label>
+
                             <select
                                 value={form.data.service_type}
-                                onChange={(e) =>
-                                    form.setData('service_type', e.target.value)
-                                }
+                                onChange={(event) => {
+                                    const value = event.target.value;
+
+                                    form.setData(
+                                        'service_type',
+                                        value,
+                                    );
+
+                                    if (value !== 'sunday_worship') {
+                                        form.setData(
+                                            'service_session',
+                                            '',
+                                        );
+                                    }
+                                }}
                                 className="input-field"
                             >
-                                {serviceTypes.map((t) => (
-                                    <option key={t}>{t}</option>
-                                ))}
+                                {Object.entries(serviceTypes).map(
+                                    ([value, serviceLabel]) => (
+                                        <option
+                                            key={value}
+                                            value={value}
+                                        >
+                                            {serviceLabel}
+                                        </option>
+                                    ),
+                                )}
                             </select>
+
+                            {error('service_type')}
                         </div>
+
                         <div>
-                            <label className={label}>Duration (minutes)</label>
+                            <label className={label}>
+                                Duration (minutes)
+                            </label>
+
                             <input
                                 type="number"
                                 min={1}
                                 value={form.data.duration_minutes}
-                                onChange={(e) =>
+                                onChange={(event) =>
                                     form.setData(
                                         'duration_minutes',
-                                        e.target.value,
+                                        event.target.value,
                                     )
                                 }
                                 placeholder="e.g. 45"
                                 className="input-field"
                             />
-                            {err('duration_minutes')}
+
+                            {error('duration_minutes')}
                         </div>
                     </div>
+
+                    {form.data.service_type === 'sunday_worship' && (
+                        <div>
+                            <label className={label}>
+                                Service Session
+                            </label>
+
+                            <select
+                                value={form.data.service_session}
+                                onChange={(event) =>
+                                    form.setData(
+                                        'service_session',
+                                        event.target.value,
+                                    )
+                                }
+                                className="input-field"
+                            >
+                                <option value="">
+                                    No specific service
+                                </option>
+
+                                {Object.entries(serviceSessions).map(
+                                    ([value, sessionLabel]) => (
+                                        <option
+                                            key={value}
+                                            value={value}
+                                        >
+                                            {sessionLabel}
+                                        </option>
+                                    ),
+                                )}
+                            </select>
+
+                            <p className="helper-text">
+                                Leave empty for a branch with only one
+                                Sunday worship service.
+                            </p>
+
+                            {error('service_session')}
+                        </div>
+                    )}
+
                     <div className="grid grid-cols-2 gap-3">
-                        {text(
+                        {textField(
                             'series_name',
                             'Series Name',
                             'Sermon series',
                             'sermon-series',
                         )}
-                        {text(
+
+                        {textField(
                             'scripture_reference',
                             'Scripture Reference',
                             'e.g. John 3:16',
@@ -910,6 +1167,7 @@ function SermonModal({
                             }
                             variant="banner"
                         />
+
                         <ImageUploadField
                             label="Speaker Photo"
                             value={form.data.speaker_photo}
@@ -921,17 +1179,19 @@ function SermonModal({
                     </div>
 
                     <div className="grid grid-cols-1 gap-4">
-                        {/* Audio */}
                         <div>
-                            <label className={label}>Audio Recording</label>
+                            <label className={label}>
+                                Audio Recording
+                            </label>
 
                             <input
                                 type="file"
                                 accept="audio/*"
-                                onChange={(e) =>
+                                onChange={(event) =>
                                     form.setData(
                                         'audio_file',
-                                        e.target.files?.[0] ?? null,
+                                        event.target.files?.[0] ??
+                                        null,
                                     )
                                 }
                                 className="input-field cursor-pointer"
@@ -953,24 +1213,27 @@ function SermonModal({
 
                             {form.data.audio_file && (
                                 <p className="mt-1 text-xs text-muted-foreground">
-                                    Selected: {form.data.audio_file.name}
+                                    Selected:{' '}
+                                    {form.data.audio_file.name}
                                 </p>
                             )}
 
-                            {err('audio_file')}
+                            {error('audio_file')}
                         </div>
 
-                        {/* Video */}
                         <div>
-                            <label className={label}>Video Recording</label>
+                            <label className={label}>
+                                Video Recording
+                            </label>
 
                             <input
                                 type="file"
                                 accept="video/*"
-                                onChange={(e) =>
+                                onChange={(event) =>
                                     form.setData(
                                         'video_file',
-                                        e.target.files?.[0] ?? null,
+                                        event.target.files?.[0] ??
+                                        null,
                                     )
                                 }
                                 className="input-field cursor-pointer"
@@ -992,24 +1255,27 @@ function SermonModal({
 
                             {form.data.video_file && (
                                 <p className="mt-1 text-xs text-muted-foreground">
-                                    Selected: {form.data.video_file.name}
+                                    Selected:{' '}
+                                    {form.data.video_file.name}
                                 </p>
                             )}
 
-                            {err('video_file')}
+                            {error('video_file')}
                         </div>
 
-                        {/* Notes */}
                         <div>
-                            <label className={label}>Sermon Notes</label>
+                            <label className={label}>
+                                Sermon Notes
+                            </label>
 
                             <input
                                 type="file"
                                 accept=".pdf,.doc,.docx"
-                                onChange={(e) =>
+                                onChange={(event) =>
                                     form.setData(
                                         'notes_file',
-                                        e.target.files?.[0] ?? null,
+                                        event.target.files?.[0] ??
+                                        null,
                                     )
                                 }
                                 className="input-field cursor-pointer"
@@ -1031,46 +1297,55 @@ function SermonModal({
 
                             {form.data.notes_file && (
                                 <p className="mt-1 text-xs text-muted-foreground">
-                                    Selected: {form.data.notes_file.name}
+                                    Selected:{' '}
+                                    {form.data.notes_file.name}
                                 </p>
                             )}
 
-                            {err('notes_file')}
+                            {error('notes_file')}
                         </div>
                     </div>
 
                     <div>
                         <label className={label}>Tags</label>
+
                         <div className="input-field flex min-h-10 flex-wrap items-center gap-1.5">
-                            {form.data.tags.map((t) => (
+                            {form.data.tags.map((tag) => (
                                 <span
-                                    key={t}
+                                    key={tag}
                                     className="flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary"
                                 >
-                                    {t}
+                                    {tag}
+
                                     <button
                                         type="button"
                                         onClick={() =>
                                             form.setData(
                                                 'tags',
                                                 form.data.tags.filter(
-                                                    (x) => x !== t,
+                                                    (item) =>
+                                                        item !== tag,
                                                 ),
                                             )
                                         }
-                                        aria-label={`Remove tag ${t}`}
+                                        aria-label={`Remove tag ${tag}`}
                                     >
                                         <X size={10} />
                                     </button>
                                 </span>
                             ))}
+
                             <input
                                 value={tagDraft}
-                                onChange={(e) => setTagDraft(e.target.value)}
-                                onKeyDown={onTagKey}
-                                onBlur={() =>
-                                    tagDraft.trim() && addTags(tagDraft)
+                                onChange={(event) =>
+                                    setTagDraft(event.target.value)
                                 }
+                                onKeyDown={onTagKey}
+                                onBlur={() => {
+                                    if (tagDraft.trim()) {
+                                        addTags(tagDraft);
+                                    }
+                                }}
                                 placeholder={
                                     form.data.tags.length
                                         ? ''
@@ -1079,47 +1354,54 @@ function SermonModal({
                                 className="min-w-24 flex-1 bg-transparent text-sm outline-none"
                             />
                         </div>
+
                         <p className="helper-text">
                             Press Enter or comma to add a tag.
                         </p>
-                        {err('tags')}
+
+                        {error('tags')}
                     </div>
 
                     <div>
                         <label className={label}>Description</label>
-                        <textarea
+
+                        <RichTextEditor
                             value={form.data.description}
-                            onChange={(e) =>
-                                form.setData('description', e.target.value)
+                            onChange={(html) =>
+                                form.setData('description', html)
                             }
-                            rows={3}
-                            placeholder="Sermon description..."
-                            className="input-field resize-none"
                         />
+
+                        {error('description')}
                     </div>
 
                     <label className="flex cursor-pointer items-center gap-2">
                         <input
                             type="checkbox"
                             checked={form.data.is_published}
-                            onChange={(e) =>
-                                form.setData('is_published', e.target.checked)
+                            onChange={(event) =>
+                                form.setData(
+                                    'is_published',
+                                    event.target.checked,
+                                )
                             }
                             className="size-4 rounded border-border"
                         />
+
                         <span className="text-sm text-foreground">
                             Published
                         </span>
                     </label>
 
                     <datalist id="sermon-series">
-                        {seriesOptions.map((s) => (
-                            <option key={s} value={s} />
+                        {seriesOptions.map((option) => (
+                            <option key={option} value={option} />
                         ))}
                     </datalist>
+
                     <datalist id="sermon-speakers">
-                        {speakerOptions.map((s) => (
-                            <option key={s} value={s} />
+                        {speakerOptions.map((option) => (
+                            <option key={option} value={option} />
                         ))}
                     </datalist>
                 </div>
@@ -1132,17 +1414,22 @@ function SermonModal({
                     >
                         Cancel
                     </button>
+
                     <button
                         type="button"
                         onClick={save}
-                        disabled={form.processing || !valid}
+                        disabled={form.processing || !isValid}
                         className="btn-primary flex-1 justify-center py-2.5 text-sm"
                     >
                         {form.processing ? (
-                            <Loader2 size={16} className="animate-spin" />
+                            <Loader2
+                                size={16}
+                                className="animate-spin"
+                            />
                         ) : (
                             <Check size={16} />
                         )}
+
                         {sermon ? 'Save Changes' : 'Add Sermon'}
                     </button>
                 </div>
@@ -1152,5 +1439,10 @@ function SermonModal({
 }
 
 Sermons.layout = {
-    breadcrumbs: [{ title: 'Sermons', href: index() }],
+    breadcrumbs: [
+        {
+            title: 'Sermons',
+            href: index(),
+        },
+    ],
 };

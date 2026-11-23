@@ -11,6 +11,7 @@ import { PersonAvatar, PersonCard } from '@/components/site/person-card';
 import { PageHeader, PublicLayout } from '@/components/site/PublicLayout';
 import { safeUrl } from '@/lib/safe-url';
 import { useSite } from '@/lib/site';
+import { stripHtml } from '@/components/ssbcms/RichText';
 
 type Item = {
     id: string | number;
@@ -119,7 +120,7 @@ function MediaCard({ item }: { item: Item }) {
                 )}
                 {item.body && (
                     <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
-                        {item.body}
+                        {stripHtml(item.body)}
                     </p>
                 )}
                 <div className="mt-auto space-y-1.5 pt-5 text-xs text-muted-foreground">

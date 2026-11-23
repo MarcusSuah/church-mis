@@ -13,6 +13,7 @@ import { PersonAvatar } from '@/components/site/person-card';
 import { PublicLayout } from '@/components/site/PublicLayout';
 import { safeUrl } from '@/lib/safe-url';
 import { useSite } from '@/lib/site';
+import RichText, { stripHtml } from '@/components/ssbcms/RichText';
 
 type Item = {
     id: string | number;
@@ -50,7 +51,7 @@ export default function Detail({
     const { get } = useSite();
     const [open, setOpen] = useState<number | null>(null);
     const description = item.body
-        ? item.body.slice(0, 160)
+        ? stripHtml(item.body).slice(0, 160)
         : (item.subtitle ?? eyebrow);
 
     // The main picture first, then the gallery photos (without repeating it).
@@ -86,19 +87,21 @@ export default function Detail({
                             <button
                                 type="button"
                                 onClick={() => setOpen(0)}
-                                className={`group relative block w-full overflow-hidden rounded-2xl bg-muted shadow-lg ring-1 ring-border ${item.portrait ? 'aspect-4/5' : 'aspect-4/3'}`}
+                                className={`group relative block w-full overflow-hidden rounded-2xl bg-muted shadow-lg ring-1 ring-border ${item.portrait
+                                        ? 'mx-auto aspect-4/5 max-h-[75svh] max-w-sm sm:max-w-md lg:max-h-[calc(100svh-8rem)] lg:max-w-none'
+                                        : 'aspect-4/3'
+                                    }`}
                                 aria-label="View pictures full screen"
                             >
                                 <img
                                     src={main.url}
                                     alt={item.title}
-                                    className={`absolute inset-0 h-full w-full transition duration-500 group-hover:scale-[1.03] ${item.portrait ? 'object-contain' : 'object-cover'}`}
+                                    className={`absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.03] ${item.portrait ? 'object-top' : 'object-center'
+                                        }`}
                                 />
                                 <span className="absolute right-3 bottom-3 inline-flex items-center gap-1.5 rounded-full bg-black/60 px-3 py-1.5 text-xs font-medium text-white">
                                     <Expand className="h-3.5 w-3.5" />
-                                    {pictures.length > 1
-                                        ? `${pictures.length} photos`
-                                        : 'View'}
+                                    {pictures.length > 1 ? `${pictures.length} photos` : 'View'}
                                 </span>
                             </button>
                         ) : kind === 'media' ? (
@@ -174,9 +177,10 @@ export default function Detail({
 
                         <div className="mt-6 border-t border-border pt-6">
                             {item.body ? (
-                                <p className="text-base leading-relaxed whitespace-pre-line text-foreground">
-                                    {item.body}
-                                </p>
+                                <RichText
+                                    html={item.body}
+                                    className="text-base text-foreground"
+                                />
                             ) : (
                                 <p className="text-sm text-muted-foreground">
                                     More details will be shared soon.

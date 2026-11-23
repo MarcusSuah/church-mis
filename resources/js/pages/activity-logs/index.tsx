@@ -152,12 +152,12 @@ const DEVICE_ICON: Record<string, string> = {
 const fmtDT = (d: string | null) =>
     d
         ? new Date(d).toLocaleString('en-US', {
-              month: 'short',
-              day: 'numeric',
-              year: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit',
-          })
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        })
         : '—';
 const place = (a: {
     city: string | null;
@@ -341,9 +341,10 @@ export default function ActivityLogs(props: Props) {
                 <BlockedTab rows={blockedIps} canManage={can.manage} />
             )}
 
+
             {detail && (
                 <Modal
-                    wide={false}
+                    wide={true}
                     title="Activity Detail"
                     onClose={() => setDetail(null)}
                     footer={
@@ -356,49 +357,85 @@ export default function ActivityLogs(props: Props) {
                         </button>
                     }
                 >
-                    <div className="space-y-3 text-sm">
-                        {[
-                            ['When', fmtDT(detail.created_at)],
-                            [
-                                'User',
-                                detail.user_name
-                                    ? `${detail.user_name} (${detail.email})`
-                                    : detail.email || 'Guest',
-                            ],
-                            [
-                                'Event',
-                                EVENT[detail.event]?.label ?? detail.event,
-                            ],
-                            ['Description', detail.description || '—'],
-                            [
-                                'Request',
-                                `${detail.method ?? ''} ${detail.url ?? ''}`,
-                            ],
-                            ['IP Address', detail.ip_address || '—'],
-                            [
-                                'Device',
-                                [detail.device, detail.browser, detail.platform]
-                                    .filter(Boolean)
-                                    .join(' · ') || '—',
-                            ],
-                            ['Location', place(detail)],
-                            ['User Agent', detail.user_agent || '—'],
-                        ].map(([l, v]) => (
-                            <div
-                                key={l}
-                                className="flex justify-between gap-4 border-b border-border pb-2 last:border-0"
-                            >
-                                <span className="shrink-0 text-muted-foreground">
-                                    {l}
-                                </span>
-                                <span className="text-right font-medium break-all text-foreground">
-                                    {v}
-                                </span>
+                    <div className="space-y-5">
+                        {/* Activity Information */}
+                        <div className="divide-y divide-border">
+                            {[
+                                ['When', fmtDT(detail.created_at)],
+                                [
+                                    'User',
+                                    detail.user_name
+                                        ? `${detail.user_name} (${detail.email})`
+                                        : detail.email || 'Guest',
+                                ],
+                                [
+                                    'Event',
+                                    EVENT[detail.event]?.label ?? detail.event,
+                                ],
+                                ['Description', detail.description || '—'],
+                                [
+                                    'Request',
+                                    `${detail.method ?? ''} ${detail.url ?? ''}`.trim() || '—',
+                                ],
+                                ['IP Address', detail.ip_address || '—'],
+                                [
+                                    'Device',
+                                    [
+                                        detail.device,
+                                        detail.browser,
+                                        detail.platform,
+                                    ]
+                                        .filter(Boolean)
+                                        .join(' · ') || '—',
+                                ],
+                                ['Location', place(detail)],
+                            ].map(([label, value]) => (
+                                <div
+                                    key={label}
+                                    className="grid grid-cols-[110px_minmax(0,1fr)] items-start gap-4 py-3 sm:grid-cols-[130px_minmax(0,1fr)]"
+                                >
+                                    <span className="text-sm text-muted-foreground">
+                                        {label}
+                                    </span>
+
+                                    <span className="min-w-0 text-right text-sm font-medium break-words text-foreground">
+                                        {value}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* User Agent */}
+                        <div className="rounded-xl border border-border bg-muted/30 p-4">
+                            <div className="mb-3 flex items-center gap-2">
+                                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                                    <Icon
+                                        name="CodeBracketIcon"
+                                        size={16}
+                                        className="text-primary"
+                                    />
+                                </div>
+
+                                <div>
+                                    <p className="text-sm font-semibold text-foreground">
+                                        User Agent
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Browser and device identification
+                                    </p>
+                                </div>
                             </div>
-                        ))}
+
+                            <div className="rounded-lg border border-border bg-card p-3">
+                                <p className="font-mono text-xs leading-6 break-all whitespace-pre-wrap text-muted-foreground">
+                                    {detail.user_agent || 'User agent information unavailable'}
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 </Modal>
             )}
+
             {blockUser && (
                 <BlockUserModal
                     user={blockUser}
@@ -630,7 +667,7 @@ function ActivityTab({
                                                     <Icon
                                                         name={
                                                             DEVICE_ICON[
-                                                                a.device ?? ''
+                                                            a.device ?? ''
                                                             ] ??
                                                             'ComputerDesktopIcon'
                                                         }

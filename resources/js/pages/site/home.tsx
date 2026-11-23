@@ -19,9 +19,7 @@ import { safeUrl } from '@/lib/safe-url';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatDate, useSite } from '@/lib/site';
 
-// ─── Trix ────────────────────────────────────────────────────────────────────
-import 'trix';
-import 'trix/dist/trix.css';
+import { stripHtml } from '@/components/ssbcms/RichText';
 
 type Slide = {
     id: number;
@@ -474,7 +472,7 @@ export default function Home({
                                             </p>
                                         )}
                                         <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">
-                                            {s.body}
+                                            {stripHtml(s.body)}
                                         </p>
                                         <p className="mt-4 text-xs text-muted-foreground">
                                             {formatDate(s.date)}

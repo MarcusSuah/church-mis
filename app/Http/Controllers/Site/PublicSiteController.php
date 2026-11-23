@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http\Controllers\Site;
 
 use App\Enums\LeadershipRole;
@@ -30,7 +29,8 @@ use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
-
+use Stevebauman\Purify\Facades\Purify;
+use Illuminate\Support\Str;
 /**
  * The public church website. Only active / published content is shown.
  * Listing cards link to a detail page addressed by the record's slug
@@ -237,6 +237,21 @@ class PublicSiteController extends Controller
         return $this->detail('From the pulpit', $this->sermonItem($sermon), route('site.sermons'), 'All sermons', 'media', $this->albumPhotos($sermon->galleryAlbums));
     }
 
+
+private function excerpt(?string $html, int $limit = 200): ?string
+{
+    if (blank($html)) {
+        return null;
+    }
+
+    $text = html_entity_decode(
+        preg_replace('/<[^>]+>/', ' ', $html),
+        ENT_QUOTES | ENT_HTML5,
+        'UTF-8'
+    );
+
+    return Str::limit(trim(preg_replace('/[\s\x{00A0}]+/u', ' ', $text)), $limit);
+}
     public function showAnnouncement(Announcement $announcement): Response
     {
         abort_unless($this->announcementsQuery()->whereKey($announcement->getKey())->exists(), 404);

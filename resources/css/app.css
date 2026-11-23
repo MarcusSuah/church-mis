@@ -13,6 +13,7 @@
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 
 @custom-variant dark (&:is(.dark *));
+
 /* Public website */
 @utility eyebrow {
     font-size: 0.7rem;
@@ -21,18 +22,20 @@
     text-transform: uppercase;
     color: var(--color-accent);
 }
+
 @utility surface-sanctuary {
     background-color: var(--color-primary);
     color: var(--color-primary-foreground);
 }
+
 @utility rule-brass {
     border-top: 2px solid var(--color-accent);
 }
+
 @utility font-display {
     font-family: 'Playfair Display', ui-serif, Georgia, serif;
 }
-/* Ported from the old config's `container: { center: true, padding: '1rem' }` —
-   v4 removed those container options in favor of overriding the utility directly. */
+
 @utility container {
     margin-inline: auto;
     padding-inline: 1rem;
@@ -50,26 +53,13 @@
     --radius-lg: var(--radius);
     --radius-md: calc(var(--radius) - 2px);
     --radius-sm: calc(var(--radius) - 4px);
-    /* Ported from the old config's borderRadius scale — it went two steps
-       larger than what was already here. */
     --radius-xl: calc(var(--radius) + 4px);
     --radius-2xl: calc(var(--radius) + 8px);
-
-    /* Ported from the old config's boxShadow extend — generates
-       shadow-card / shadow-elevated / shadow-modal utilities. */
     --shadow-card:
         0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.06);
     --shadow-elevated:
         0 4px 12px 0 rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     --shadow-modal: 0 20px 60px -10px rgba(0, 0, 0, 0.25);
-
-    /* Ported from the old config's animation extend. The @keyframes
-       themselves already exist further down in this file (fadeIn, slideUp,
-       scaleIn, pulseHighlight) — this just wires them up as real
-       animate-fade-in / animate-slide-up / etc. utilities, which support
-       variants (hover:animate-fade-in) the way the old .fade-in-style
-       hand-rolled classes below can't. Those classes are left as-is since
-       nothing conflicts; feel free to migrate off them later. */
     --animate-fade-in: fadeIn 200ms ease forwards;
     --animate-slide-up: slideUp 200ms ease forwards;
     --animate-scale-in: scaleIn 150ms ease forwards;
@@ -102,9 +92,6 @@
     --color-border: var(--border);
     --color-input: var(--input);
     --color-ring: var(--ring);
-
-    /* Semantic status colors, matching your original component classes
-       (bg-success, text-danger, bg-info-bg, etc.) */
     --color-success: var(--success);
     --color-success-foreground: var(--success-foreground);
     --color-success-bg: var(--success-bg);
@@ -117,13 +104,11 @@
     --color-info: var(--info);
     --color-info-foreground: var(--info-foreground);
     --color-info-bg: var(--info-bg);
-
     --color-chart-1: var(--chart-1);
     --color-chart-2: var(--chart-2);
     --color-chart-3: var(--chart-3);
     --color-chart-4: var(--chart-4);
     --color-chart-5: var(--chart-5);
-
     --color-sidebar: var(--sidebar);
     --color-sidebar-foreground: var(--sidebar-foreground);
     --color-sidebar-primary: var(--sidebar-primary);
@@ -167,9 +152,6 @@
     --info: #2563eb;
     --info-foreground: #ffffff;
     --info-bg: #eff6ff;
-
-    /* Not in the original file — built from the accent/primary/status colors
-       above so charts have a cohesive 5-color palette. */
     --chart-1: #c9a84c;
     --chart-2: #1e3a5f;
     --chart-3: #16a34a;
@@ -178,10 +160,6 @@
 
     --radius: 0.5rem;
 
-    /* Not in the original file — matches the navy `bg-primary` sidebar look
-       from your Sidebar.tsx (active item ≈ bg-white/15, hover ≈ bg-white/10,
-       approximated here as solid shades since CSS vars can't carry alpha
-       overlays the way the old className strings did). */
     --sidebar: #1e3a5f;
     --sidebar-foreground: #ffffff;
     --sidebar-primary: #2d5492;
@@ -196,9 +174,6 @@
     --topbar-height: 64px;
 }
 
-/* Not in the original file — it only defined a light theme. Derived to keep
-   the app's existing dark-mode toggle working; adjust freely if you had a
-   different dark palette in mind. */
 .dark {
     --background: #0b1420;
     --foreground: #f1f0ec;
@@ -343,12 +318,10 @@
     }
 
     .gradient-gold {
-        background: linear-gradient(
-            135deg,
-            #a07830 0%,
-            #c9a84c 50%,
-            #e8c870 100%
-        );
+        background: linear-gradient(135deg,
+                #a07830 0%,
+                #c9a84c 50%,
+                #e8c870 100%);
     }
 
     .gradient-navy {
@@ -366,6 +339,7 @@
     from {
         opacity: 0;
     }
+
     to {
         opacity: 1;
     }
@@ -376,6 +350,7 @@
         opacity: 0;
         transform: translateY(12px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -387,6 +362,7 @@
         opacity: 0;
         transform: scale(0.95);
     }
+
     to {
         opacity: 1;
         transform: scale(1);
@@ -397,9 +373,11 @@
     0% {
         background-color: transparent;
     }
+
     30% {
         background-color: rgba(201, 168, 76, 0.15);
     }
+
     100% {
         background-color: transparent;
     }
@@ -428,6 +406,13 @@
 
     .input-field {
         @apply w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground transition-colors duration-150 placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring focus:outline-none;
+    }
+
+    .input-field {
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        box-sizing: border-box;
     }
 
     .label-text {
@@ -489,6 +474,51 @@
     .table-row {
         @apply border-b border-border transition-colors duration-100;
     }
+
+    /* Rich-text content (RichTextEditor + RichText) */
+    .rich-text {
+        @apply leading-relaxed;
+    }
+
+    .rich-text>*+* {
+        margin-top: 0.75em;
+    }
+
+    .rich-text h1 {
+        @apply text-2xl font-bold text-foreground;
+    }
+
+    .rich-text h2 {
+        @apply text-xl font-bold text-foreground;
+    }
+
+    .rich-text h3 {
+        @apply text-lg font-semibold text-foreground;
+    }
+
+    .rich-text strong {
+        @apply font-semibold;
+    }
+
+    .rich-text ul {
+        @apply list-disc pl-6;
+    }
+
+    .rich-text ol {
+        @apply list-decimal pl-6;
+    }
+
+    .rich-text li+li {
+        margin-top: 0.25rem;
+    }
+
+    .rich-text blockquote {
+        @apply border-l-4 border-accent pl-4 italic;
+    }
+
+    .rich-text a {
+        @apply text-primary underline underline-offset-2;
+    }
 }
 
 /* Page loading indicator (components/global-loader.tsx). */
@@ -516,6 +546,7 @@
     0% {
         transform: translateX(-100%);
     }
+
     100% {
         transform: translateX(300%);
     }
@@ -528,6 +559,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+
     .page-loader-bar,
     .page-loader-spinner {
         animation-duration: 3s;

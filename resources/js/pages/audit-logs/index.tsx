@@ -325,9 +325,10 @@ export default function AuditLogs({ logs, filters, stats, modules }: Props) {
                 <ServerPaginator meta={logs} />
             </div>
 
+
             {selected && (
                 <Modal
-                    wide={false}
+                    wide={true}
                     title="Log Detail"
                     onClose={() => setSelected(null)}
                     footer={
@@ -340,38 +341,55 @@ export default function AuditLogs({ logs, filters, stats, modules }: Props) {
                         </button>
                     }
                 >
-                    <div className="space-y-4">
-                        {[
-                            ['Date & Time', fmtDT(selected.created_at)],
-                            ['Action', selected.action],
-                            ['Module', selected.module || '—'],
-                            ['Table', selected.table_name],
-                            ['Description', selected.description || '—'],
-                            [
-                                'Performed By',
-                                selected.performed_by_name ??
+                    <div className="space-y-5">
+
+                        {/* Log Information */}
+                        <div className="divide-y divide-border">
+                            {[
+                                ['Date & Time', fmtDT(selected.created_at)],
+                                ['Action', selected.action],
+                                ['Module', selected.module || '—'],
+                                ['Table', selected.table_name],
+                                ['Description', selected.description || '—'],
+                                [
+                                    'Performed By',
+                                    selected.performed_by_name ??
                                     selected.performed_by,
-                            ],
-                            ['Email', selected.performed_by],
-                            ['Role', selected.performed_by_role],
-                            ['IP Address', selected.ip_address || '—'],
-                            ['Record ID', selected.record_id || '—'],
-                        ].map(([l, v]) => (
-                            <div key={l} className="flex justify-between gap-4">
-                                <span className="shrink-0 text-sm text-muted-foreground">
-                                    {l}
-                                </span>
-                                <span className="text-right text-sm font-medium break-all text-foreground">
-                                    {v}
-                                </span>
-                            </div>
-                        ))}
+                                ],
+                                ['Email', selected.performed_by],
+                                ['Role', selected.performed_by_role],
+                                ['IP Address', selected.ip_address || '—'],
+                                ['Record ID', selected.record_id || '—'],
+                            ].map(([label, value]) => (
+                                <div
+                                    key={label}
+                                    className="grid grid-cols-[110px_minmax(0,1fr)] items-start gap-4 py-3 sm:grid-cols-[130px_minmax(0,1fr)]"
+                                >
+                                    <span className="text-sm text-muted-foreground">
+                                        {label}
+                                    </span>
+
+                                    <span className="min-w-0 text-right text-sm font-medium break-words text-foreground">
+                                        {value}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Old Values */}
                         {selected.old_values && (
-                            <div>
-                                <p className="mb-1 text-sm text-muted-foreground">
-                                    Old Values
-                                </p>
-                                <pre className="max-h-32 overflow-auto rounded-lg bg-muted p-3 text-xs text-foreground">
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <p className="text-sm font-semibold text-foreground">
+                                        Old Values
+                                    </p>
+
+                                    <span className="text-xs text-muted-foreground">
+                                        Previous data
+                                    </span>
+                                </div>
+
+                                <pre className="max-h-52 overflow-auto rounded-xl border border-border bg-muted/50 p-4 font-mono text-xs leading-6 break-words whitespace-pre-wrap text-foreground">
                                     {JSON.stringify(
                                         selected.old_values,
                                         null,
@@ -380,12 +398,21 @@ export default function AuditLogs({ logs, filters, stats, modules }: Props) {
                                 </pre>
                             </div>
                         )}
+
+                        {/* New Values */}
                         {selected.new_values && (
-                            <div>
-                                <p className="mb-1 text-sm text-muted-foreground">
-                                    New Values
-                                </p>
-                                <pre className="max-h-32 overflow-auto rounded-lg bg-muted p-3 text-xs text-foreground">
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <p className="text-sm font-semibold text-foreground">
+                                        New Values
+                                    </p>
+
+                                    <span className="text-xs text-muted-foreground">
+                                        Updated data
+                                    </span>
+                                </div>
+
+                                <pre className="max-h-52 overflow-auto rounded-xl border border-border bg-muted/50 p-4 font-mono text-xs leading-6 break-words whitespace-pre-wrap text-foreground">
                                     {JSON.stringify(
                                         selected.new_values,
                                         null,
@@ -394,9 +421,11 @@ export default function AuditLogs({ logs, filters, stats, modules }: Props) {
                                 </pre>
                             </div>
                         )}
+
                     </div>
                 </Modal>
             )}
+
         </div>
     );
 }

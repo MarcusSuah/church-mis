@@ -292,7 +292,7 @@ function Field({
     children: ReactNode;
 }) {
     return (
-        <div className={className}>
+        <div className={`min-w-0 ${className}`}>
             <label className="mb-1 block text-xs font-medium text-foreground">
                 {label}
                 {required && <span className="text-danger"> *</span>}
@@ -535,7 +535,7 @@ export default function RegistrationWizard({
     return (
         <>
             {/* Stepper */}
-            <ol className="mb-8 flex items-start">
+            <ol className="mb-6 flex w-full items-start gap-0 overflow-x-auto pb-2 sm:mb-8">
                 {STEPS.map((s, i) => {
                     const done = i < step;
                     const active = i === step;
@@ -547,16 +547,15 @@ export default function RegistrationWizard({
                             <button
                                 type="button"
                                 onClick={() => goTo(i)}
-                                className="flex w-16 flex-col items-center gap-1 sm:w-20"
+                                className="flex w-12 shrink-0 flex-col items-center gap-1 sm:w-20"
                             >
                                 <span
-                                    className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors ${
-                                        active
-                                            ? 'bg-primary text-primary-foreground'
-                                            : done
-                                              ? 'bg-success text-white'
-                                              : 'bg-muted text-muted-foreground'
-                                    }`}
+                                    className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors ${active
+                                        ? 'bg-primary text-primary-foreground'
+                                        : done
+                                            ? 'bg-success text-white'
+                                            : 'bg-muted text-muted-foreground'
+                                        }`}
                                 >
                                     {done ? (
                                         <Check className="size-4" />
@@ -565,7 +564,7 @@ export default function RegistrationWizard({
                                     )}
                                 </span>
                                 <span
-                                    className={`text-center text-[10px] leading-tight ${active ? 'font-semibold text-primary' : 'text-muted-foreground'}`}
+                                    className={`text-center text-[9px] leading-tight sm:text-[10px] ${active ? 'font-semibold text-primary' : 'text-muted-foreground'}`}
                                 >
                                     {s.title}
                                 </span>
@@ -588,7 +587,7 @@ export default function RegistrationWizard({
             {/* Step 1 — personal */}
             {step === 0 && (
                 <div className="space-y-4">
-                    <div className="flex items-center gap-4">
+                    <div className="flex min-w-0 flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-4">
                         {photoPreview ? (
                             <img
                                 src={photoPreview}
@@ -821,11 +820,10 @@ export default function RegistrationWizard({
                                         type="button"
                                         key={String(v)}
                                         onClick={() => setData('baptized', v)}
-                                        className={`flex-1 rounded-lg border px-3 py-2 text-sm transition-colors ${
-                                            data.baptized === v
-                                                ? 'border-primary bg-primary/5 font-semibold text-primary'
-                                                : 'border-border text-muted-foreground'
-                                        }`}
+                                        className={`flex-1 rounded-lg border px-3 py-2 text-sm transition-colors ${data.baptized === v
+                                            ? 'border-primary bg-primary/5 font-semibold text-primary'
+                                            : 'border-border text-muted-foreground'
+                                            }`}
                                     >
                                         {v ? 'Yes' : 'No'}
                                     </button>
@@ -879,11 +877,10 @@ export default function RegistrationWizard({
                                         type="button"
                                         key={m}
                                         onClick={() => toggleInterest(m)}
-                                        className={`rounded-full border px-3 py-1 text-xs transition-colors ${
-                                            on
-                                                ? 'border-primary bg-primary text-primary-foreground'
-                                                : 'border-border text-muted-foreground hover:bg-muted'
-                                        }`}
+                                        className={`rounded-full border px-3 py-1 text-xs transition-colors ${on
+                                            ? 'border-primary bg-primary text-primary-foreground'
+                                            : 'border-border text-muted-foreground hover:bg-muted'
+                                            }`}
                                     >
                                         {m}
                                     </button>
@@ -1027,7 +1024,7 @@ export default function RegistrationWizard({
                                 {data.family.children.map((c, i) => (
                                     <div
                                         key={i}
-                                        className="grid grid-cols-[1fr_160px_auto] items-start gap-2"
+                                       className="grid min-w-0 grid-cols-1 items-start gap-2 sm:grid-cols-[minmax(0,1fr)_160px_auto]"
                                     >
                                         <div>
                                             <input
@@ -1043,14 +1040,14 @@ export default function RegistrationWizard({
                                             {errors[
                                                 `family.children.${i}.name`
                                             ] && (
-                                                <p className="error-text">
-                                                    {
-                                                        errors[
+                                                    <p className="error-text">
+                                                        {
+                                                            errors[
                                                             `family.children.${i}.name`
-                                                        ]
-                                                    }
-                                                </p>
-                                            )}
+                                                            ]
+                                                        }
+                                                    </p>
+                                                )}
                                         </div>
                                         <input
                                             type="date"
@@ -1325,7 +1322,7 @@ export default function RegistrationWizard({
             )}
 
             {/* Footer */}
-            <div className="mt-6 flex items-center justify-between border-t border-border pt-5">
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-5">
                 {step > 0 ? (
                     <button
                         type="button"
@@ -1338,8 +1335,8 @@ export default function RegistrationWizard({
                 ) : (
                     (footerStart ?? <span />)
                 )}
-                <div className="flex items-center gap-3">
-                    <span className="text-xs text-muted-foreground">
+                <div className="ml-auto flex flex-wrap items-center justify-end gap-2 sm:gap-3">
+                    <span className="whitespace-nowrap text-xs text-muted-foreground">
                         Step {step + 1} of {STEPS.length}
                     </span>
                     {step < STEPS.length - 1 ? (
@@ -1397,7 +1394,7 @@ function ReviewSection({
                     Edit
                 </button>
             </div>
-            <dl className="grid gap-x-4 gap-y-2 p-4 sm:grid-cols-2">
+            <dl className="grid min-w-0 gap-x-4 gap-y-2 p-4 sm:grid-cols-2">
                 {children}
             </dl>
         </div>
@@ -1410,7 +1407,7 @@ function ReviewRow({ label, value }: { label: string; value: string }) {
             <dt className="text-[11px] tracking-wide text-muted-foreground uppercase">
                 {label}
             </dt>
-            <dd className="text-sm text-foreground">
+            <dd className="break-words text-sm text-foreground">
                 {value && value !== '—' ? value : '—'}
             </dd>
         </div>

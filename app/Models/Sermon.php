@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\ServiceSession;
+use App\Enums\ServiceType;
 use App\Models\Concerns\HasSlug;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,14 +15,6 @@ class Sermon extends Model
 {
     use HasFactory, HasSlug, HasUuids;
 
-    public const SERVICE_TYPES = [
-        'Sunday Worship' => 'Sunday Worship',
-        'Bible Study' => 'Bible Study',
-        'Prayer Meeting' => 'Prayer Meeting',
-        'Special Service' => 'Special Service',
-        'Youth Service' => 'Youth Service',
-    ];
-
     protected $fillable = [
         'title',
         'speaker_name',
@@ -30,6 +24,7 @@ class Sermon extends Model
         'description',
         'sermon_date',
         'service_type',
+        'service_session',
         'audio_url',
         'video_url',
         'notes_url',
@@ -44,13 +39,33 @@ class Sermon extends Model
     protected function casts(): array
     {
         return [
+            'service_type' => ServiceType::class,
+            'service_session' => ServiceSession::class,
             'sermon_date' => 'date:Y-m-d',
             'tags' => 'array',
             'is_published' => 'boolean',
             'duration_minutes' => 'integer',
             'view_count' => 'integer',
-            'created_by' => 'integer', // Add this if using BIGINT
         ];
+    }
+
+    public function getServiceLabelAttribute(): string
+    {
+        $type = $this->service_type;
+
+        if ($type === null) {
+            return 'Service';
+        }
+
+        if ($type !== ServiceType::SundayWorship) {
+            return $type->label();
+        }
+
+        return match ($this->service_session) {
+            ServiceSession::FirstService => 'Sunday Worship — 1st Service',
+            ServiceSession::SecondService => 'Sunday Worship — 2nd Service',
+            default => 'Sunday Worship',
+        };
     }
 
     public function creator(): BelongsTo
@@ -58,13 +73,11 @@ class Sermon extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
-    /** Slug source: see HasSlug. */
     public function slugSource(): string
     {
         return trim((string) $this->title);
     }
 
-    /** Photo albums for this sermon (shown in the gallery and on its page). */
     public function galleryAlbums(): HasMany
     {
         return $this->hasMany(GalleryAlbum::class);

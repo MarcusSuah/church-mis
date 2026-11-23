@@ -38,6 +38,7 @@ use Spatie\Permission\Events\PermissionAttachedEvent;
 use Spatie\Permission\Events\PermissionDetachedEvent;
 use Spatie\Permission\Events\RoleAttachedEvent;
 use Spatie\Permission\Events\RoleDetachedEvent;
+use App\Observers\ActivityObserver;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -76,7 +77,11 @@ class AppServiceProvider extends ServiceProvider
         foreach (NotifyObserver::MODELS as $model) {
             $model::observe(NotifyObserver::class);
         }
-
+        foreach (array_keys(config('activity.models', [])) as $model) {
+            if (class_exists($model)) {
+                $model::observe(ActivityObserver::class);
+            }
+        }
         $this->trackAuthentication();
         $this->auditRoleChanges();
     }
@@ -85,24 +90,24 @@ class AppServiceProvider extends ServiceProvider
     private function auditRoleChanges(): void
     {
         $names = function (mixed $items, string $class): string {
-            $ids = collect(is_iterable($items) ? $items : [$items])->map(fn ($i) => $i instanceof Model ? $i->getKey() : $i)->all();
+            $ids = collect(is_iterable($items) ? $items : [$items])->map(fn($i) => $i instanceof Model ? $i->getKey() : $i)->all();
 
             return $class::whereIn('id', $ids)->pluck('name')->implode(', ');
         };
-        $who = fn (Model $m) => $m->getAttribute('name') ?? $m->getAttribute('email') ?? class_basename($m).' '.$m->getKey();
+        $who = fn(Model $m) => $m->getAttribute('name') ?? $m->getAttribute('email') ?? class_basename($m) . ' ' . $m->getKey();
 
         // Role changes on accounts are audited and also alert the people who manage users.
         $roleChange = function ($e, string $verb) use ($names, $who): void {
-            $message = 'Role '.$names($e->rolesOrIds, Role::class)." {$verb} ".$who($e->model);
+            $message = 'Role ' . $names($e->rolesOrIds, Role::class) . " {$verb} " . $who($e->model);
             AuditObserver::note('UPDATE', 'Security', $message, 'model_has_roles');
             if ($e->model instanceof User && auth()->check()) {
-                Notifier::permission('users.view', '🔐 Account role changed', $message.' by '.auth()->user()->name.'.', 'warning', '/admin/users');
+                Notifier::permission('users.view', '🔐 Account role changed', $message . ' by ' . auth()->user()->name . '.', 'warning', '/admin/users');
             }
         };
-        Event::listen(RoleAttachedEvent::class, fn ($e) => $roleChange($e, 'given to'));
-        Event::listen(RoleDetachedEvent::class, fn ($e) => $roleChange($e, 'removed from'));
-        Event::listen(PermissionAttachedEvent::class, fn ($e) => AuditObserver::note('UPDATE', 'Security', 'Permission '.$names($e->permissionsOrIds, Permission::class).' given to '.$who($e->model), 'role_has_permissions'));
-        Event::listen(PermissionDetachedEvent::class, fn ($e) => AuditObserver::note('UPDATE', 'Security', 'Permission '.$names($e->permissionsOrIds, Permission::class).' removed from '.$who($e->model), 'role_has_permissions'));
+        Event::listen(RoleAttachedEvent::class, fn($e) => $roleChange($e, 'given to'));
+        Event::listen(RoleDetachedEvent::class, fn($e) => $roleChange($e, 'removed from'));
+        Event::listen(PermissionAttachedEvent::class, fn($e) => AuditObserver::note('UPDATE', 'Security', 'Permission ' . $names($e->permissionsOrIds, Permission::class) . ' given to ' . $who($e->model), 'role_has_permissions'));
+        Event::listen(PermissionDetachedEvent::class, fn($e) => AuditObserver::note('UPDATE', 'Security', 'Permission ' . $names($e->permissionsOrIds, Permission::class) . ' removed from ' . $who($e->model), 'role_has_permissions'));
     }
 
     /** Sign-ins, sign-outs, failed attempts and password resets → activity log. */
@@ -143,13 +148,16 @@ class AppServiceProvider extends ServiceProvider
             if ($recent === (int) config('church.suspicious_failed_logins', 5)) {
                 Notifier::permission('activity.view', '🔒 Suspicious sign-in activity', "{$recent} failed sign-ins in 15 minutes from IP {$req->ip()} (last tried: {$email}). Review it in the Activity Log.", 'urgent', '/activity-logs?tab=suspicious');
             }
-            ActivityLogger::log($req, 'login_failed',
-                "Failed sign-in for {$email}".($suspicious ? " ({$recent} failures in 15 min from this IP)" : ''),
+            ActivityLogger::log(
+                $req,
+                'login_failed',
+                "Failed sign-in for {$email}" . ($suspicious ? " ({$recent} failures in 15 min from this IP)" : ''),
                 $e->user instanceof User ? $e->user : null,
-                ['email' => $email, 'is_suspicious' => $suspicious]);
+                ['email' => $email, 'is_suspicious' => $suspicious]
+            );
         });
 
-        Event::listen(PasswordReset::class, fn (PasswordReset $e) => ActivityLogger::log(request(), 'password_changed', 'Password reset by email link', $e->user));
+        Event::listen(PasswordReset::class, fn(PasswordReset $e) => ActivityLogger::log(request(), 'password_changed', 'Password reset by email link', $e->user));
     }
 
     protected function configureDefaults(): void
@@ -160,14 +168,15 @@ class AppServiceProvider extends ServiceProvider
             app()->isProduction(),
         );
 
-        Password::defaults(fn (): ?Password => app()->isProduction()
-            ? Password::min(12)
+        Password::defaults(
+            fn(): ?Password => app()->isProduction()
+                ? Password::min(12)
                 ->mixedCase()
                 ->letters()
                 ->numbers()
                 ->symbols()
                 ->uncompromised()
-            : null,
+                : null,
         );
     }
 }
