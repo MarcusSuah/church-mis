@@ -405,6 +405,8 @@ class RolePermissionSeeder extends Seeder
             RoleEnum::SUPERVISOR->value
         )->first()?->syncPermissions([
             'dashboard.view',
+            // Signs reports for the Church Board (ReportSignature::POSITION_ROLES).
+            'reports.view',
             'members.view',
             'members.create',
             'members.update',
@@ -432,6 +434,8 @@ class RolePermissionSeeder extends Seeder
             RoleEnum::FINANCEOFFICER->value
         )->first()?->syncPermissions([
             'dashboard.view',
+            // The Treasurer opens reports to sign them (signing by role: ReportSignature::POSITION_ROLES).
+            'reports.view',
             'members.view',
             'finance.view',
             'finance.create',

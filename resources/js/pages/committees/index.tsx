@@ -34,6 +34,7 @@ import {
     update as updateMemberRoute,
 } from '@/routes/committees/members';
 import { useMemberOptionsSearch } from '@/hooks/use-member-options-search';
+import { useSearchParam } from '@/hooks/use-search-param';
 
 type Committee = {
     id: string;
@@ -219,6 +220,7 @@ export default function Committees({
     can,
 }: Props) {
     const [search, setSearch] = useState('');
+    useSearchParam(setSearch);
     const [type, setType] = useState('All');
     const [editing, setEditing] = useState<Committee | 'new' | null>(null);
     const [picking, setPicking] = useState(false);
@@ -362,7 +364,9 @@ export default function Committees({
                                     <button
                                         type="button"
                                         className="relative block w-full text-left"
-                                        onClick={() => go({ committee: c.slug ?? c.id })}
+                                        onClick={() =>
+                                            go({ committee: c.slug ?? c.id })
+                                        }
                                     >
                                         <Banner
                                             c={c}
@@ -384,7 +388,9 @@ export default function Committees({
                                         <h3
                                             className="cursor-pointer font-semibold text-foreground transition-colors hover:text-primary"
                                             onClick={() =>
-                                                go({ committee: c.slug ?? c.id })
+                                                go({
+                                                    committee: c.slug ?? c.id,
+                                                })
                                             }
                                         >
                                             {c.name}
@@ -425,7 +431,10 @@ export default function Committees({
                                             <button
                                                 type="button"
                                                 onClick={() =>
-                                                    go({ committee: c.slug ?? c.id })
+                                                    go({
+                                                        committee:
+                                                            c.slug ?? c.id,
+                                                    })
                                                 }
                                                 className="text-xs font-medium text-primary hover:underline"
                                             >
@@ -886,7 +895,9 @@ function CommitteeModal({
                         ))}
                     </select>
                     {form.errors.committee_type && (
-                        <p className="error-text">{form.errors.committee_type}</p>
+                        <p className="error-text">
+                            {form.errors.committee_type}
+                        </p>
                     )}
                 </div>
                 <div>

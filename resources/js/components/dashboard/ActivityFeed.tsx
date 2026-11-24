@@ -11,12 +11,22 @@ const MODULE_ICON: Record<string, [string, string]> = {
     Sacraments: ['SparklesIcon', 'bg-warning/10 text-warning'],
     Content: ['MegaphoneIcon', 'bg-info/10 text-info'],
     Sermons: ['BookOpenIcon', 'bg-primary/10 text-primary'],
+    'Church Structure': ['BuildingOffice2Icon', 'bg-info/10 text-info'],
+    Website: ['GlobeAltIcon', 'bg-accent/10 text-accent'],
+    Security: ['ShieldCheckIcon', 'bg-warning/10 text-warning'],
+    Reports: ['DocumentChartBarIcon', 'bg-primary/10 text-primary'],
     System: ['Cog6ToothIcon', 'bg-muted text-muted-foreground'],
 };
 const ACTION: Record<string, [string, string]> = {
     CREATE: ['New', 'bg-success/10 text-success'],
     UPDATE: ['Updated', 'bg-info/10 text-info'],
     DELETE: ['Removed', 'bg-danger/10 text-danger'],
+    EXPORT: ['Exported', 'bg-primary/10 text-primary'],
+    LOGIN: ['Signed in', 'bg-success/10 text-success'],
+    LOGOUT: ['Signed out', 'bg-muted text-muted-foreground'],
+    LOGIN_FAILED: ['Failed sign-in', 'bg-danger/10 text-danger'],
+    PASSWORD_CHANGED: ['Password', 'bg-warning/10 text-warning'],
+    BLOCKED: ['Blocked', 'bg-danger/10 text-danger'],
 };
 
 export default function ActivityFeed({ items }: { items: ActivityItem[] }) {

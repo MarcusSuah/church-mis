@@ -18,6 +18,14 @@ final class SqlDate
             : "DATE_FORMAT({$column}, '%Y-%m')";
     }
 
+    /** "YYYY" for a date or datetime column. */
+    public static function year(string $column): string
+    {
+        return self::isSqlite()
+            ? "strftime('%Y', {$column})"
+            : "DATE_FORMAT({$column}, '%Y')";
+    }
+
     /** Month * 100 + day (e.g. 1231 for 31 December) for a date column. */
     public static function monthDay(string $column): string
     {

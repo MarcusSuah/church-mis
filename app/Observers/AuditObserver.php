@@ -16,7 +16,10 @@ use App\Models\ChurchSetting;
 use App\Models\Committee;
 use App\Models\CommitteeMember;
 use App\Models\Communion;
+use App\Models\CommunionParticipant;
 use App\Models\ContactMessage;
+use App\Models\ContactMessageReply;
+use App\Models\Contribution;
 use App\Models\Department;
 use App\Models\DepartmentActivity;
 use App\Models\DepartmentMember;
@@ -41,6 +44,7 @@ use App\Models\Offering;
 use App\Models\PastoralCare;
 use App\Models\Permission;
 use App\Models\PrayerRequest;
+use App\Models\ReportSignature;
 use App\Models\Role;
 use App\Models\Sermon;
 use App\Models\SitePage;
@@ -65,6 +69,7 @@ class AuditObserver
         Donation::class => 'Finance',
         Expense::class => 'Finance',
         Budget::class => 'Finance',
+        Contribution::class => 'Finance',
         FinanceFund::class => 'Finance',
         Event::class => 'Events',
         Announcement::class => 'Content',
@@ -74,6 +79,7 @@ class AuditObserver
         PastoralCare::class => 'Prayer',
         Baptism::class => 'Sacraments',
         Communion::class => 'Sacraments',
+        CommunionParticipant::class => 'Sacraments',
         Wedding::class => 'Sacraments',
         Funeral::class => 'Sacraments',
         DocumentRequest::class => 'Sacraments',
@@ -96,6 +102,8 @@ class AuditObserver
         GalleryAlbum::class => 'Website',
         GalleryPhoto::class => 'Website',
         ContactMessage::class => 'Website',
+        ContactMessageReply::class => 'Website',
+        ReportSignature::class => 'Reports',
         ChurchSetting::class => 'System',
         MemberMessage::class => 'Members',
         Role::class => 'Security',

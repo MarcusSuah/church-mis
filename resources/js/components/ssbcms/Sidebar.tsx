@@ -28,7 +28,7 @@ type NavItem = {
 type NavGroup = { group: string; items: NavItem[] };
 
 /* Same groups, order and icons as the SSBCMS reference app. */
-const STAFF_NAV: NavGroup[] = [
+export const STAFF_NAV: NavGroup[] = [
     {
         group: '',
         items: [
@@ -653,7 +653,9 @@ export default function Sidebar({
                     className={`nav-item text-white/70 hover:bg-white/10 hover:text-white ${collapsed ? 'justify-center px-2' : ''}`}
                 >
                     <Icon name="HomeIcon" size={18} className="shrink-0" />
-                    {!collapsed && <span className="flex-1 truncate">Home</span>}
+                    {!collapsed && (
+                        <span className="flex-1 truncate">Home</span>
+                    )}
                 </a>
                 <button
                     type="button"
@@ -661,7 +663,11 @@ export default function Sidebar({
                     title={collapsed ? 'Lock screen' : undefined}
                     className={`nav-item w-full text-white/70 hover:bg-white/10 hover:text-white ${collapsed ? 'justify-center px-2' : ''}`}
                 >
-                    <Icon name="LockClosedIcon" size={18} className="shrink-0" />
+                    <Icon
+                        name="LockClosedIcon"
+                        size={18}
+                        className="shrink-0"
+                    />
                     {!collapsed && (
                         <span className="flex-1 truncate text-left">
                             Lock screen

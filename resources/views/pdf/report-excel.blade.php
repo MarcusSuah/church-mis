@@ -6,6 +6,9 @@
     <tr><td colspan="4">{{ collect([$church['address'] ?? null, $church['phone'] ?? null, $church['email'] ?? null])->filter()->implode(' · ') }}</td></tr>
     <tr><td colspan="4" style="font-size:14px;font-weight:bold">{{ $report['title'] }}</td></tr>
     <tr><td colspan="4">{{ $report['period'] }}</td></tr>
+    @if (($report['filters'] ?? '') !== '')
+        <tr><td colspan="4" style="font-weight:bold">Filtered by: {{ \App\Support\Csv::safe($report['filters']) }}</td></tr>
+    @endif
     <tr><td></td></tr>
     @foreach ($report['summary'] as $row)
         <tr><td style="font-weight:bold">{{ \App\Support\Csv::safe($row['label']) }}</td><td>{{ \App\Support\Csv::safe($row['value']) }}</td></tr>

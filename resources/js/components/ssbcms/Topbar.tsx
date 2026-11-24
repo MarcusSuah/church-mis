@@ -1,6 +1,6 @@
-import { Link, router, usePage } from '@inertiajs/react';
-import type { FormEvent } from 'react';
+import { Link, router, usePage, usePoll } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
+import { GlobalSearch } from '@/components/global-search';
 import Icon from '@/components/ssbcms/AppIcon';
 import { initialsOf } from '@/components/ssbcms/Sidebar';
 import { usePermissions } from '@/hooks/use-permissions';
@@ -37,6 +37,8 @@ export function timeAgo(iso: string | null) {
           });
 }
 
+const NOTIFICATION_POLL_MS = 30_000;
+
 /** Closes a dropdown when clicking outside it. */
 function useOutside(
     ref: React.RefObject<HTMLElement | null>,
@@ -67,18 +69,19 @@ export default function Topbar({
         items: NotificationItem[];
     } | null) ?? { unread: 0, items: [] };
 
+    // Keep the bell current without a page change: refresh only the summary
+    // every 30 s (Inertia slows this down while the tab is in the background).
+    usePoll(NOTIFICATION_POLL_MS, {
+        only: ['notificationSummary'],
+        showProgress: false,
+    });
+
     const [showNotifications, setShowNotifications] = useState(false);
     const [showUserMenu, setShowUserMenu] = useState(false);
-    const [q, setQ] = useState('');
     const bellRef = useRef<HTMLDivElement>(null);
     const userRef = useRef<HTMLDivElement>(null);
     useOutside(bellRef, () => setShowNotifications(false));
     useOutside(userRef, () => setShowUserMenu(false));
-
-    const search = (e: FormEvent) => {
-        e.preventDefault();
-        if (q.trim()) router.get('/member-management', { search: q.trim() });
-    };
 
     const openNotification = (n: NotificationItem) => {
         setShowNotifications(false);
@@ -120,28 +123,7 @@ export default function Topbar({
                         className="text-muted-foreground"
                     />
                 </button>
-                {can('members.view') && !isMemberOnly && (
-                    <form
-                        onSubmit={search}
-                        className="hidden w-72 items-center gap-2 rounded-lg bg-muted px-3 py-2 md:flex"
-                    >
-                        <Icon
-                            name="MagnifyingGlassIcon"
-                            size={16}
-                            className="shrink-0 text-muted-foreground"
-                        />
-                        <input
-                            type="text"
-                            value={q}
-                            onChange={(e) => setQ(e.target.value)}
-                            placeholder="Search members..."
-                            className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
-                        />
-                        <kbd className="hidden rounded border border-border bg-card px-1.5 py-0.5 text-xs text-muted-foreground lg:block">
-                            ↵
-                        </kbd>
-                    </form>
-                )}
+                {!isMemberOnly && <GlobalSearch />}
             </div>
 
             {/* Right */}

@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enums\ServiceType;
 use App\Models\Sermon;
 
 /** Sample published sermons for the sermon archive. */
@@ -28,7 +29,7 @@ class SermonSeeder extends DemoSeeder
                 'scripture_reference' => $scripture,
                 'description' => $description,
                 'sermon_date' => now()->previous('Sunday')->subWeeks($week)->toDateString(),
-                'service_type' => 'Sunday Worship',
+                'service_type' => ServiceType::SundayWorship,
                 'duration_minutes' => 40 + ($week * 3) % 15,
                 'tags' => array_values(array_filter([$series ? strtolower($series) : null, 'sunday worship'])),
                 'is_published' => true,

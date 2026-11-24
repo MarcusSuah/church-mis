@@ -36,6 +36,7 @@ import {
     update as updateMemberRoute,
 } from '@/routes/boards/members';
 import { useMemberOptionsSearch } from '@/hooks/use-member-options-search';
+import { useSearchParam } from '@/hooks/use-search-param';
 
 type Board = {
     id: string;
@@ -218,6 +219,7 @@ export default function Boards({
     can,
 }: Props) {
     const [search, setSearch] = useState('');
+    useSearchParam(setSearch);
     const [type, setType] = useState('All');
     const [editing, setEditing] = useState<Board | 'new' | null>(null);
     const [picking, setPicking] = useState(false);
@@ -363,7 +365,9 @@ export default function Boards({
                                     <button
                                         type="button"
                                         className="relative block w-full text-left"
-                                        onClick={() => go({ board: b.slug ?? b.id })}
+                                        onClick={() =>
+                                            go({ board: b.slug ?? b.id })
+                                        }
                                     >
                                         <Banner b={b} iconSize={36} />
                                         <div className="absolute right-3 bottom-3 left-3 flex items-end justify-between">
@@ -380,7 +384,9 @@ export default function Boards({
                                     <div className="p-4">
                                         <h3
                                             className="cursor-pointer font-semibold text-foreground transition-colors hover:text-primary"
-                                            onClick={() => go({ board: b.slug ?? b.id })}
+                                            onClick={() =>
+                                                go({ board: b.slug ?? b.id })
+                                            }
                                         >
                                             {b.name}
                                         </h3>
@@ -420,7 +426,9 @@ export default function Boards({
                                             <button
                                                 type="button"
                                                 onClick={() =>
-                                                    go({ board: b.slug ?? b.id })
+                                                    go({
+                                                        board: b.slug ?? b.id,
+                                                    })
                                                 }
                                                 className="text-xs font-medium text-primary hover:underline"
                                             >

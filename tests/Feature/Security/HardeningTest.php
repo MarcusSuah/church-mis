@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\Role as RoleEnum;
+use App\Enums\ServiceType;
 use App\Logging\RedactSensitiveContext;
 use App\Models\Sermon;
 use App\Models\User;
@@ -26,7 +27,7 @@ test('C13: sermon recordings and notes are uploaded, validated and linked', func
         'title' => 'Faith That Works',
         'speaker_name' => 'Rev. Doe',
         'sermon_date' => now()->toDateString(),
-        'service_type' => Sermon::SERVICE_TYPES[array_key_first(Sermon::SERVICE_TYPES)],
+        'service_type' => ServiceType::SundayWorship->value,
         'notes_file' => UploadedFile::fake()->create('notes.pdf', 200, 'application/pdf'),
     ])->assertRedirect()->assertSessionHasNoErrors();
 
@@ -42,7 +43,7 @@ test('C13: executable or HTML files are rejected as sermon media', function () {
         'title' => 'Bad Upload',
         'speaker_name' => 'Rev. Doe',
         'sermon_date' => now()->toDateString(),
-        'service_type' => Sermon::SERVICE_TYPES[array_key_first(Sermon::SERVICE_TYPES)],
+        'service_type' => ServiceType::SundayWorship->value,
         'notes_file' => UploadedFile::fake()->create('notes.html', 5, 'text/html'),
         'video_url' => 'javascript:alert(1)',
     ])->assertSessionHasErrors(['notes_file', 'video_url']);

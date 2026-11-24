@@ -1,5 +1,5 @@
 import { Head, router, useForm, usePage } from '@inertiajs/react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Icon from '@/components/ssbcms/AppIcon';
 import type { LaravelPage } from '@/components/ssbcms/Pagination';
 import { ServerPaginator } from '@/components/ssbcms/Pagination';
@@ -45,6 +45,11 @@ type Props = {
     today: Birthday[];
     upcoming: Birthday[];
     members?: MemberOpt[];
+    memberTotal?: number;
+    allMembers?: MemberOpt[];
+    memberFilters: { q: string; department: string };
+    departments: string[];
+    maxRecipients: number;
     preselectMember: MemberOpt | null;
     occasions: Record<string, { subject: string; messages: string[] }>;
     history: LaravelPage<Sent>;
@@ -101,7 +106,11 @@ function Avatar({
 export default function Birthdays({
     today,
     upcoming,
-    members = [],
+    members,
+    memberTotal,
+    memberFilters,
+    departments,
+    maxRecipients,
     preselectMember,
     occasions,
     history,
@@ -110,7 +119,12 @@ export default function Birthdays({
 }: Props) {
     const { church } = usePage<{ church: { name: string } }>().props;
     const occasionNames = Object.keys(occasions);
-    const [memberSearch, setMemberSearch] = useState('');
+    const [memberSearch, setMemberSearch] = useState(memberFilters.q);
+    const [department, setDepartment] = useState(memberFilters.department);
+    const [listLoading, setListLoading] = useState(false);
+    const [selectingAll, setSelectingAll] = useState(false);
+    const [capped, setCapped] = useState(false);
+    const [showAllChips, setShowAllChips] = useState(false);
     const [templateIdx, setTemplateIdx] = useState(0);
     const form = useForm<{
         member_ids: string[];
@@ -134,27 +148,84 @@ export default function Birthdays({
         .map((id) => picked[id])
         .filter((m): m is MemberOpt => Boolean(m));
 
-    // Ask the server for at most 20 matches, 300 ms after typing stops (F07).
+    // Re-list active members from the server 300 ms after the search or
+    // department changes; the server sends one page at a time (F07).
+    const listQuery = {
+        member_q: memberSearch.trim(),
+        member_department: department,
+    };
     const firstSearch = useRef(true);
     useEffect(() => {
         if (firstSearch.current) {
             firstSearch.current = false;
             return;
         }
-        const q = memberSearch.trim();
-        if (q.length < 2) return;
         const t = setTimeout(
-            () => router.reload({ only: ['members'], data: { member_q: q } }),
+            () =>
+                router.reload({
+                    only: ['members', 'memberTotal'],
+                    data: {
+                        member_q: memberSearch.trim(),
+                        member_department: department,
+                    },
+                    onStart: () => setListLoading(true),
+                    onFinish: () => setListLoading(false),
+                }),
             300,
         );
         return () => clearTimeout(t);
-    }, [memberSearch]);
-    const matches = useMemo(() => {
-        if (memberSearch.trim().length < 2) return [];
-        return members
-            .filter((m) => !form.data.member_ids.includes(m.id))
-            .slice(0, 8);
-    }, [memberSearch, members, form.data.member_ids]);
+    }, [memberSearch, department]);
+
+    /** Adds members to the selection, never beyond the send limit. */
+    const addMembers = (list: MemberOpt[]) => {
+        setPicked((p) => ({
+            ...p,
+            ...Object.fromEntries(list.map((m) => [m.id, m])),
+        }));
+        const ids = [...form.data.member_ids];
+        let hitLimit = false;
+        for (const m of list) {
+            if (ids.includes(m.id)) continue;
+            if (ids.length >= maxRecipients) {
+                hitLimit = true;
+                break;
+            }
+            ids.push(m.id);
+        }
+        setCapped(hitLimit);
+        form.setData('member_ids', ids);
+    };
+    const removeMember = (id: string) => {
+        setCapped(false);
+        form.setData(
+            'member_ids',
+            form.data.member_ids.filter((x) => x !== id),
+        );
+    };
+    const toggleMember = (m: MemberOpt) =>
+        form.data.member_ids.includes(m.id)
+            ? removeMember(m.id)
+            : addMembers([m]);
+
+    // "Select all": asks the server for every matching active member (up to the limit).
+    const selectAll = () =>
+        router.reload({
+            only: ['allMembers'],
+            data: listQuery,
+            onStart: () => setSelectingAll(true),
+            onFinish: () => setSelectingAll(false),
+            onSuccess: (page) =>
+                addMembers((page.props.allMembers as MemberOpt[]) ?? []),
+        });
+    const listed = members ?? [];
+    const allListedSelected =
+        listed.length > 0 &&
+        listed.every((m) => form.data.member_ids.includes(m.id));
+    const memberError =
+        form.errors.member_ids ??
+        Object.entries(form.errors).find(([k]) =>
+            k.startsWith('member_ids.'),
+        )?.[1];
 
     const templates = occasions[form.data.occasion]?.messages ?? [];
     const applyTemplate = (occasion: string, idx: number) => {
@@ -174,12 +245,6 @@ export default function Birthdays({
         while (i === templateIdx)
             i = Math.floor(Math.random() * templates.length);
         applyTemplate(form.data.occasion, i);
-    };
-    const addMember = (member: MemberOpt) => {
-        setPicked((p) => ({ ...p, [member.id]: member }));
-        if (!form.data.member_ids.includes(member.id))
-            form.setData('member_ids', [...form.data.member_ids, member.id]);
-        setMemberSearch('');
     };
     const toggleChannel = (c: string) =>
         form.setData(
@@ -216,7 +281,10 @@ export default function Birthdays({
     const send = () =>
         form.post('/birthdays/send', {
             preserveScroll: true,
-            onSuccess: () => form.setData('member_ids', []),
+            onSuccess: () => {
+                setCapped(false);
+                form.setData('member_ids', []);
+            },
         });
     const noEmail = selected.filter((m) => !m.email);
     const noAccount = selected.filter((m) => !m.has_account);
@@ -248,9 +316,8 @@ export default function Birthdays({
                 <button
                     type="button"
                     onClick={() => {
-                        setPicked((p) => ({
-                            ...p,
-                            [b.id]: {
+                        addMembers([
+                            {
                                 id: b.id,
                                 name: b.name,
                                 first_name: b.first_name,
@@ -260,12 +327,7 @@ export default function Birthdays({
                                 photo_url: b.photo_url,
                                 date_of_birth: b.date_of_birth,
                             },
-                        }));
-                        if (!form.data.member_ids.includes(b.id))
-                            form.setData('member_ids', [
-                                ...form.data.member_ids,
-                                b.id,
-                            ]);
+                        ]);
                         if (form.data.occasion !== 'Birthday')
                             applyTemplate('Birthday', 0);
                         document
@@ -375,84 +437,225 @@ export default function Birthdays({
                         </p>
                     ) : (
                         <div className="space-y-4">
-                            <Field
-                                label="Members *"
-                                error={form.errors.member_ids}
-                            >
-                                <div className="relative">
-                                    <div className="flex flex-wrap gap-1.5 rounded-lg border border-border bg-background p-2">
-                                        {selected.map((m) => (
-                                            <span
-                                                key={m.id}
-                                                className="flex items-center gap-1 rounded-full bg-primary/10 py-0.5 pr-1 pl-2.5 text-xs font-medium text-primary"
-                                            >
-                                                {m.name}
+                            <Field label="Members *" error={memberError}>
+                                {/* Chosen members */}
+                                <div className="rounded-lg border border-border bg-background p-2">
+                                    {selected.length === 0 ? (
+                                        <p className="px-1 py-0.5 text-sm text-muted-foreground">
+                                            No members chosen yet. Tick active
+                                            members below, or use “Send wish” on
+                                            a birthday card.
+                                        </p>
+                                    ) : (
+                                        <div className="flex flex-wrap items-center gap-1.5">
+                                            {(showAllChips
+                                                ? selected
+                                                : selected.slice(0, 12)
+                                            ).map((m) => (
+                                                <span
+                                                    key={m.id}
+                                                    className="flex items-center gap-1 rounded-full bg-primary/10 py-0.5 pr-1 pl-2.5 text-xs font-medium text-primary"
+                                                >
+                                                    {m.name}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            removeMember(m.id)
+                                                        }
+                                                        className="rounded-full p-0.5 hover:bg-primary/20"
+                                                        aria-label={`Remove ${m.name}`}
+                                                    >
+                                                        <Icon
+                                                            name="XMarkIcon"
+                                                            size={12}
+                                                        />
+                                                    </button>
+                                                </span>
+                                            ))}
+                                            {selected.length > 12 && (
                                                 <button
                                                     type="button"
                                                     onClick={() =>
-                                                        form.setData(
-                                                            'member_ids',
-                                                            form.data.member_ids.filter(
-                                                                (x) =>
-                                                                    x !== m.id,
-                                                            ),
+                                                        setShowAllChips(
+                                                            (v) => !v,
                                                         )
                                                     }
-                                                    className="rounded-full p-0.5 hover:bg-primary/20"
-                                                    aria-label={`Remove ${m.name}`}
+                                                    className="text-xs font-medium text-primary hover:underline"
                                                 >
-                                                    <Icon
-                                                        name="XMarkIcon"
-                                                        size={12}
-                                                    />
+                                                    {showAllChips
+                                                        ? 'Show fewer'
+                                                        : `+${selected.length - 12} more`}
                                                 </button>
-                                            </span>
-                                        ))}
-                                        <input
-                                            value={memberSearch}
-                                            onChange={(e) =>
-                                                setMemberSearch(e.target.value)
-                                            }
-                                            placeholder={
-                                                selected.length
-                                                    ? 'Add another member…'
-                                                    : 'Type a member’s name…'
-                                            }
-                                            className="min-w-[160px] flex-1 bg-transparent px-1 text-sm outline-none"
-                                        />
-                                    </div>
-                                    {matches.length > 0 && (
-                                        <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-xl border border-border bg-card shadow-elevated">
-                                            {matches.map((m) => (
-                                                <button
-                                                    key={m.id}
-                                                    type="button"
-                                                    onClick={() => addMember(m)}
-                                                    className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-muted"
-                                                >
-                                                    <Avatar
-                                                        name={m.name}
-                                                        photo={m.photo_url}
-                                                        size="h-8 w-8"
-                                                    />
-                                                    <div className="min-w-0">
-                                                        <p className="text-sm font-medium text-foreground">
-                                                            {m.name}
-                                                        </p>
-                                                        <p className="truncate text-xs text-muted-foreground">
-                                                            {[
-                                                                m.email ??
-                                                                    'No email',
-                                                                m.department,
-                                                            ]
-                                                                .filter(Boolean)
-                                                                .join(' · ')}
-                                                        </p>
-                                                    </div>
-                                                </button>
-                                            ))}
+                                            )}
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setCapped(false);
+                                                    form.setData(
+                                                        'member_ids',
+                                                        [],
+                                                    );
+                                                }}
+                                                className="ml-auto text-xs text-muted-foreground hover:text-danger"
+                                            >
+                                                Clear all
+                                            </button>
                                         </div>
                                     )}
+                                </div>
+                                {capped && (
+                                    <p className="mt-1 text-xs text-warning">
+                                        Only the first {maxRecipients} members
+                                        were added — that is the most one
+                                        message can go to.
+                                    </p>
+                                )}
+
+                                {/* Active members from the database */}
+                                <div className="mt-2 overflow-hidden rounded-lg border border-border">
+                                    <div className="flex flex-wrap gap-2 border-b border-border bg-muted/40 p-2">
+                                        <div className="relative min-w-0 flex-1 basis-48">
+                                            <Icon
+                                                name="MagnifyingGlassIcon"
+                                                size={14}
+                                                className="absolute top-1/2 left-2.5 -translate-y-1/2 text-muted-foreground"
+                                            />
+                                            <input
+                                                type="search"
+                                                value={memberSearch}
+                                                onChange={(e) =>
+                                                    setMemberSearch(
+                                                        e.target.value,
+                                                    )
+                                                }
+                                                placeholder="Search active members by name, email or ID…"
+                                                aria-label="Search active members"
+                                                className={`${inputCls} pl-8`}
+                                            />
+                                        </div>
+                                        <select
+                                            value={department}
+                                            onChange={(e) =>
+                                                setDepartment(e.target.value)
+                                            }
+                                            aria-label="Filter by department"
+                                            className={`${inputCls} w-auto min-w-40 flex-none`}
+                                        >
+                                            <option value="">
+                                                All departments
+                                            </option>
+                                            {departments.map((d) => (
+                                                <option key={d} value={d}>
+                                                    {d}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2 text-xs text-muted-foreground">
+                                        <span>
+                                            {memberTotal === undefined
+                                                ? 'Loading active members…'
+                                                : `${memberTotal} active member${memberTotal === 1 ? '' : 's'}${listLoading ? ' · updating…' : ''}`}
+                                        </span>
+                                        {memberTotal !== undefined &&
+                                            memberTotal > 0 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={selectAll}
+                                                    disabled={
+                                                        selectingAll ||
+                                                        (allListedSelected &&
+                                                            memberTotal <=
+                                                                listed.length)
+                                                    }
+                                                    className="font-semibold text-primary hover:underline disabled:text-muted-foreground disabled:no-underline"
+                                                >
+                                                    {selectingAll
+                                                        ? 'Selecting…'
+                                                        : memberTotal >
+                                                            maxRecipients
+                                                          ? `Select first ${maxRecipients}`
+                                                          : `Select all ${memberTotal}`}
+                                                </button>
+                                            )}
+                                    </div>
+
+                                    <div
+                                        className={`max-h-72 scrollbar-thin overflow-y-auto ${listLoading ? 'opacity-60' : ''}`}
+                                    >
+                                        {members === undefined ? (
+                                            <div className="space-y-2 p-3">
+                                                {[0, 1, 2, 3].map((i) => (
+                                                    <div
+                                                        key={i}
+                                                        className="flex animate-pulse items-center gap-3"
+                                                    >
+                                                        <div className="h-8 w-8 rounded-full bg-muted" />
+                                                        <div className="h-3 w-40 rounded bg-muted" />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : listed.length === 0 ? (
+                                            <p className="p-4 text-center text-sm text-muted-foreground">
+                                                No active members match.
+                                            </p>
+                                        ) : (
+                                            listed.map((m) => {
+                                                const checked =
+                                                    form.data.member_ids.includes(
+                                                        m.id,
+                                                    );
+
+                                                return (
+                                                    <label
+                                                        key={m.id}
+                                                        className={`flex cursor-pointer items-center gap-3 border-b border-border px-3 py-2 last:border-0 hover:bg-muted ${checked ? 'bg-primary/5' : ''}`}
+                                                    >
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={checked}
+                                                            onChange={() =>
+                                                                toggleMember(m)
+                                                            }
+                                                            className="rounded border-border"
+                                                        />
+                                                        <Avatar
+                                                            name={m.name}
+                                                            photo={m.photo_url}
+                                                            size="h-8 w-8"
+                                                        />
+                                                        <span className="min-w-0 flex-1">
+                                                            <span className="block truncate text-sm font-medium text-foreground">
+                                                                {m.name}
+                                                            </span>
+                                                            <span className="block truncate text-xs text-muted-foreground">
+                                                                {[
+                                                                    m.email ??
+                                                                        'No email',
+                                                                    m.department,
+                                                                ]
+                                                                    .filter(
+                                                                        Boolean,
+                                                                    )
+                                                                    .join(
+                                                                        ' · ',
+                                                                    )}
+                                                            </span>
+                                                        </span>
+                                                    </label>
+                                                );
+                                            })
+                                        )}
+                                    </div>
+                                    {memberTotal !== undefined &&
+                                        memberTotal > listed.length && (
+                                            <p className="border-t border-border px-3 py-2 text-xs text-muted-foreground">
+                                                Showing the first{' '}
+                                                {listed.length} — search or pick
+                                                a department to find others.
+                                            </p>
+                                        )}
                                 </div>
                             </Field>
 

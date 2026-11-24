@@ -9,6 +9,7 @@ use App\Models\Member;
 use App\Support\ListQuery;
 use App\Support\StatsCache;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -184,6 +185,24 @@ abstract class RecordsController extends Controller
         ]);
     }
 
+    /**
+     * Up to $limit records this user may see that match $term, in list order.
+     * Backs the header search with the same visibility and search columns as
+     * the list page, so a result always appears when its link is opened.
+     *
+     * @return EloquentCollection<int, Model>
+     */
+    public function searchMatches(string $term, int $limit): EloquentCollection
+    {
+        if (trim($term) === '' || $this->searchColumns() === []) {
+            return new EloquentCollection;
+        }
+
+        return $this->sort(ListQuery::search($this->visibleQuery(), $term, $this->searchColumns()))
+            ->limit($limit)
+            ->get();
+    }
+
     private function applyFilters(Builder $query, array $filters): Builder
     {
         ListQuery::search($query, $filters['search'] ?? '', $this->searchColumns());
@@ -223,9 +242,29 @@ abstract class RecordsController extends Controller
         return back();
     }
 
+    /**
+     * Custom validation messages, keyed "field.rule" (default: Laravel's).
+     *
+     * @return array<string, string>
+     */
+    protected function messages(): array
+    {
+        return [];
+    }
+
+    /**
+     * Field names used in validation messages (default: from the field key).
+     *
+     * @return array<string, string>
+     */
+    protected function attributes(): array
+    {
+        return [];
+    }
+
     private function validated(Request $request): array
     {
-        $data = $request->validate($this->rules());
+        $data = $request->validate($this->rules(), $this->messages(), $this->attributes());
 
         // Empty strings from the form become NULL.
         return array_map(fn ($v) => $v === '' ? null : $v, $data);

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Sacraments;
 
 use App\Models\Baptism;
 use App\Models\Member;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\Rule;
 
@@ -24,18 +25,37 @@ class BaptismController extends RecordsController
     protected function rules(): array
     {
         return [
+            // "Not a member / Guest" is a valid choice in the picker, so the link itself stays optional.
             'member_id' => ['nullable', 'uuid', 'exists:members,id'],
             'candidate_name' => ['required', 'string', 'max:255'],
-            'candidate_photo' => ['nullable', 'string', 'max:500'],
-            'baptism_date' => ['required', 'date'],
+            'candidate_photo' => ['required', 'string', 'max:500'],
+            'baptism_date' => ['required', 'date', 'before_or_equal:today'],
             'baptism_type' => ['required', Rule::in(self::TYPES)],
-            'officiant' => ['nullable', 'string', 'max:255'],
-            'location' => ['nullable', 'string', 'max:255'],
-            'witnesses' => ['nullable', 'string', 'max:2000'],
+            'officiant' => ['required', 'string', 'max:255'],
+            'location' => ['required', 'string', 'max:255'],
+            'witnesses' => ['required', 'string', 'max:2000'],
+            // The only optional field: left blank, a number is assigned when the certificate is issued.
             'certificate_number' => ['nullable', 'string', 'max:100'],
-            'certificate_issued' => ['boolean'],
-            'certificate_date' => ['nullable', 'date'],
-            'notes' => ['nullable', 'string', 'max:5000'],
+            'certificate_issued' => ['required', 'boolean'],
+            'certificate_date' => ['required_if_accepted:certificate_issued', 'nullable', 'date', 'after_or_equal:baptism_date'],
+            'notes' => ['required', 'string', 'max:5000'],
+        ];
+    }
+
+    protected function messages(): array
+    {
+        return [
+            'candidate_name.required' => 'Enter the full name of the person being baptized.',
+            'candidate_photo.required' => 'Upload a photo of the candidate.',
+            'baptism_date.required' => 'Choose the date of the baptism.',
+            'baptism_date.before_or_equal' => 'The baptism date cannot be in the future.',
+            'baptism_type.required' => 'Choose how the baptism was performed.',
+            'officiant.required' => 'Enter the name of the pastor or minister who officiated.',
+            'location.required' => 'Enter where the baptism took place.',
+            'witnesses.required' => 'Enter at least one witness.',
+            'certificate_date.required_if_accepted' => 'Choose the date the certificate was issued.',
+            'certificate_date.after_or_equal' => 'The certificate cannot be issued before the baptism date.',
+            'notes.required' => 'Add a short note about this baptism.',
         ];
     }
 
@@ -77,7 +97,7 @@ class BaptismController extends RecordsController
         ];
     }
 
-    protected function stats(\Illuminate\Database\Eloquent\Builder $all, \Illuminate\Database\Eloquent\Builder $filtered): array
+    protected function stats(Builder $all, Builder $filtered): array
     {
         return [
             'total' => (clone $all)->count(),

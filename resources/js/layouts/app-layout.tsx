@@ -1,8 +1,5 @@
 import AppLayoutTemplate from '@/layouts/app/app-sidebar-layout';
 import type { BreadcrumbItem } from '@/types';
-// ─── Trix ────────────────────────────────────────────────────────────────────
-import 'trix';
-import 'trix/dist/trix.css';
 
 export default function AppLayout({
     breadcrumbs = [],

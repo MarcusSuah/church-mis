@@ -1,3 +1,4 @@
+import { useSearchParam } from '@/hooks/use-search-param';
 import { Head, router, useForm } from '@inertiajs/react';
 import {
     BookOpen,
@@ -108,13 +109,7 @@ function Img({
     );
 }
 
-function SpeakerAvatar({
-    src,
-    size,
-}: {
-    src: string | null;
-    size: string;
-}) {
+function SpeakerAvatar({ src, size }: { src: string | null; size: string }) {
     return (
         <Img
             src={src}
@@ -160,6 +155,7 @@ export default function Sermons({
     can,
 }: Props) {
     const [search, setSearch] = useState('');
+    useSearchParam(setSearch);
     const [serviceFilter, setServiceFilter] = useState('all');
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [editing, setEditing] = useState<Sermon | 'new' | null>(null);
@@ -170,8 +166,7 @@ export default function Sermons({
     const views = (sermon: Sermon) =>
         viewCounts[sermon.id] ?? sermon.view_count;
 
-    const selected =
-        sermons.find((sermon) => sermon.id === selectedId) ?? null;
+    const selected = sermons.find((sermon) => sermon.id === selectedId) ?? null;
 
     const filtered = useMemo(() => {
         const query = search.toLowerCase().trim();
@@ -332,9 +327,7 @@ export default function Sermons({
 
                 <select
                     value={serviceFilter}
-                    onChange={(event) =>
-                        setServiceFilter(event.target.value)
-                    }
+                    onChange={(event) => setServiceFilter(event.target.value)}
                     className="min-w-40 rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:outline-none"
                     aria-label="Filter by service type"
                 >
@@ -374,12 +367,15 @@ export default function Sermons({
                             tabIndex={0}
                             onClick={() => open(sermon)}
                             onKeyDown={(event) => {
-                                if (event.key === 'Enter' || event.key === ' ') {
+                                if (
+                                    event.key === 'Enter' ||
+                                    event.key === ' '
+                                ) {
                                     event.preventDefault();
                                     open(sermon);
                                 }
                             }}
-                            className="card flex cursor-pointer gap-4 p-4 transition-all duration-200 hover:shadow-md hover:border-primary/30"
+                            className="card flex cursor-pointer gap-4 p-4 transition-all duration-200 hover:border-primary/30 hover:shadow-md"
                         >
                             <button
                                 type="button"
@@ -506,21 +502,17 @@ export default function Sermons({
 
                                 {sermon.tags.length > 0 && (
                                     <div className="mt-2 flex flex-wrap gap-1">
-                                        {sermon.tags
-                                            .slice(0, 4)
-                                            .map((tag) => (
-                                                <button
-                                                    type="button"
-                                                    key={tag}
-                                                    onClick={() =>
-                                                        setSearch(tag)
-                                                    }
-                                                    className="rounded-full bg-primary/10 px-1.5 py-0.5 text-xs text-primary hover:bg-primary/20"
-                                                    title={`Show sermons tagged "${tag}"`}
-                                                >
-                                                    {tag}
-                                                </button>
-                                            ))}
+                                        {sermon.tags.slice(0, 4).map((tag) => (
+                                            <button
+                                                type="button"
+                                                key={tag}
+                                                onClick={() => setSearch(tag)}
+                                                className="rounded-full bg-primary/10 px-1.5 py-0.5 text-xs text-primary hover:bg-primary/20"
+                                                title={`Show sermons tagged "${tag}"`}
+                                            >
+                                                {tag}
+                                            </button>
+                                        ))}
                                     </div>
                                 )}
                             </div>
@@ -596,8 +588,7 @@ function SermonDrawer({
 
         window.addEventListener('keydown', handleEscape);
 
-        return () =>
-            window.removeEventListener('keydown', handleEscape);
+        return () => window.removeEventListener('keydown', handleEscape);
     }, [onClose]);
 
     const resources = [
@@ -624,10 +615,7 @@ function SermonDrawer({
             role="dialog"
             aria-modal="true"
         >
-            <div
-                className="flex-1 bg-black/40 fade-in"
-                onClick={onClose}
-            />
+            <div className="flex-1 bg-black/40 fade-in" onClick={onClose} />
 
             <div className="slide-up w-full max-w-lg overflow-y-auto border-l border-border bg-background">
                 <div className="relative h-48 bg-muted">
@@ -636,10 +624,7 @@ function SermonDrawer({
                         className="h-full w-full object-cover"
                         fallback={
                             <span className="flex h-full w-full items-center justify-center bg-primary/10">
-                                <Mic
-                                    size={48}
-                                    className="text-primary/40"
-                                />
+                                <Mic size={48} className="text-primary/40" />
                             </span>
                         }
                     />
@@ -692,8 +677,7 @@ function SermonDrawer({
                             {
                                 Icon: BookOpen,
                                 label: 'Scripture',
-                                value:
-                                    sermon.scripture_reference || '—',
+                                value: sermon.scripture_reference || '—',
                             },
                             {
                                 Icon: Clock,
@@ -852,8 +836,7 @@ function SermonModal({
         scripture_reference: sermon?.scripture_reference ?? '',
         description: sermon?.description ?? '',
         sermon_date:
-            sermon?.sermon_date ??
-            new Date().toISOString().slice(0, 10),
+            sermon?.sermon_date ?? new Date().toISOString().slice(0, 10),
         service_type: sermon?.service_type ?? 'sunday_worship',
         service_session: sermon?.service_session ?? '',
         audio_file: null as File | null,
@@ -874,9 +857,7 @@ function SermonModal({
             .filter(Boolean);
 
         if (next.length) {
-            form.setData('tags', [
-                ...new Set([...form.data.tags, ...next]),
-            ]);
+            form.setData('tags', [...new Set([...form.data.tags, ...next])]);
         }
 
         setTagDraft('');
@@ -898,14 +879,14 @@ function SermonModal({
     const save = () => {
         const pendingTags = tagDraft.trim()
             ? [
-                ...new Set([
-                    ...form.data.tags,
-                    ...tagDraft
-                        .split(',')
-                        .map((tag) => tag.trim().toLowerCase())
-                        .filter(Boolean),
-                ]),
-            ]
+                  ...new Set([
+                      ...form.data.tags,
+                      ...tagDraft
+                          .split(',')
+                          .map((tag) => tag.trim().toLowerCase())
+                          .filter(Boolean),
+                  ]),
+              ]
             : form.data.tags;
 
         form.transform((data) => ({
@@ -934,8 +915,7 @@ function SermonModal({
         }
     };
 
-    const label =
-        'mb-1 block text-xs font-medium text-muted-foreground';
+    const label = 'mb-1 block text-xs font-medium text-muted-foreground';
 
     const error = (field: string) =>
         (form.errors as Record<string, string>)[field] && (
@@ -945,11 +925,7 @@ function SermonModal({
         );
 
     const textField = (
-        field:
-            | 'title'
-            | 'speaker_name'
-            | 'series_name'
-            | 'scripture_reference',
+        field: 'title' | 'speaker_name' | 'series_name' | 'scripture_reference',
         labelText: string,
         placeholder: string,
         list?: string,
@@ -959,9 +935,7 @@ function SermonModal({
 
             <input
                 value={form.data[field]}
-                onChange={(event) =>
-                    form.setData(field, event.target.value)
-                }
+                onChange={(event) => form.setData(field, event.target.value)}
                 placeholder={placeholder}
                 list={list}
                 className="input-field"
@@ -982,10 +956,7 @@ function SermonModal({
             role="dialog"
             aria-modal="true"
         >
-            <div
-                className="absolute inset-0 bg-black/50"
-                onClick={onClose}
-            />
+            <div className="absolute inset-0 bg-black/50" onClick={onClose} />
 
             <div className="scale-in relative flex max-h-[90vh] w-full max-w-2xl flex-col rounded-2xl border border-border bg-background shadow-xl">
                 <div className="flex items-center justify-between border-b border-border p-5">
@@ -1004,11 +975,7 @@ function SermonModal({
                 </div>
 
                 <div className="scrollbar-thin space-y-4 overflow-y-auto p-5">
-                    {textField(
-                        'title',
-                        'Sermon Title *',
-                        'Sermon title',
-                    )}
+                    {textField('title', 'Sermon Title *', 'Sermon title')}
 
                     <div className="grid grid-cols-2 gap-3">
                         {textField(
@@ -1019,9 +986,7 @@ function SermonModal({
                         )}
 
                         <div>
-                            <label className={label}>
-                                Sermon Date *
-                            </label>
+                            <label className={label}>Sermon Date *</label>
 
                             <input
                                 type="date"
@@ -1041,35 +1006,24 @@ function SermonModal({
 
                     <div className="grid grid-cols-2 gap-3">
                         <div>
-                            <label className={label}>
-                                Service Type *
-                            </label>
+                            <label className={label}>Service Type *</label>
 
                             <select
                                 value={form.data.service_type}
                                 onChange={(event) => {
                                     const value = event.target.value;
 
-                                    form.setData(
-                                        'service_type',
-                                        value,
-                                    );
+                                    form.setData('service_type', value);
 
                                     if (value !== 'sunday_worship') {
-                                        form.setData(
-                                            'service_session',
-                                            '',
-                                        );
+                                        form.setData('service_session', '');
                                     }
                                 }}
                                 className="input-field"
                             >
                                 {Object.entries(serviceTypes).map(
                                     ([value, serviceLabel]) => (
-                                        <option
-                                            key={value}
-                                            value={value}
-                                        >
+                                        <option key={value} value={value}>
                                             {serviceLabel}
                                         </option>
                                     ),
@@ -1080,9 +1034,7 @@ function SermonModal({
                         </div>
 
                         <div>
-                            <label className={label}>
-                                Duration (minutes)
-                            </label>
+                            <label className={label}>Duration (minutes)</label>
 
                             <input
                                 type="number"
@@ -1104,9 +1056,7 @@ function SermonModal({
 
                     {form.data.service_type === 'sunday_worship' && (
                         <div>
-                            <label className={label}>
-                                Service Session
-                            </label>
+                            <label className={label}>Service Session</label>
 
                             <select
                                 value={form.data.service_session}
@@ -1118,16 +1068,11 @@ function SermonModal({
                                 }
                                 className="input-field"
                             >
-                                <option value="">
-                                    No specific service
-                                </option>
+                                <option value="">No specific service</option>
 
                                 {Object.entries(serviceSessions).map(
                                     ([value, sessionLabel]) => (
-                                        <option
-                                            key={value}
-                                            value={value}
-                                        >
+                                        <option key={value} value={value}>
                                             {sessionLabel}
                                         </option>
                                     ),
@@ -1135,8 +1080,8 @@ function SermonModal({
                             </select>
 
                             <p className="helper-text">
-                                Leave empty for a branch with only one
-                                Sunday worship service.
+                                Leave empty for a branch with only one Sunday
+                                worship service.
                             </p>
 
                             {error('service_session')}
@@ -1180,9 +1125,7 @@ function SermonModal({
 
                     <div className="grid grid-cols-1 gap-4">
                         <div>
-                            <label className={label}>
-                                Audio Recording
-                            </label>
+                            <label className={label}>Audio Recording</label>
 
                             <input
                                 type="file"
@@ -1190,8 +1133,7 @@ function SermonModal({
                                 onChange={(event) =>
                                     form.setData(
                                         'audio_file',
-                                        event.target.files?.[0] ??
-                                        null,
+                                        event.target.files?.[0] ?? null,
                                     )
                                 }
                                 className="input-field cursor-pointer"
@@ -1213,8 +1155,7 @@ function SermonModal({
 
                             {form.data.audio_file && (
                                 <p className="mt-1 text-xs text-muted-foreground">
-                                    Selected:{' '}
-                                    {form.data.audio_file.name}
+                                    Selected: {form.data.audio_file.name}
                                 </p>
                             )}
 
@@ -1222,9 +1163,7 @@ function SermonModal({
                         </div>
 
                         <div>
-                            <label className={label}>
-                                Video Recording
-                            </label>
+                            <label className={label}>Video Recording</label>
 
                             <input
                                 type="file"
@@ -1232,8 +1171,7 @@ function SermonModal({
                                 onChange={(event) =>
                                     form.setData(
                                         'video_file',
-                                        event.target.files?.[0] ??
-                                        null,
+                                        event.target.files?.[0] ?? null,
                                     )
                                 }
                                 className="input-field cursor-pointer"
@@ -1255,8 +1193,7 @@ function SermonModal({
 
                             {form.data.video_file && (
                                 <p className="mt-1 text-xs text-muted-foreground">
-                                    Selected:{' '}
-                                    {form.data.video_file.name}
+                                    Selected: {form.data.video_file.name}
                                 </p>
                             )}
 
@@ -1264,9 +1201,7 @@ function SermonModal({
                         </div>
 
                         <div>
-                            <label className={label}>
-                                Sermon Notes
-                            </label>
+                            <label className={label}>Sermon Notes</label>
 
                             <input
                                 type="file"
@@ -1274,8 +1209,7 @@ function SermonModal({
                                 onChange={(event) =>
                                     form.setData(
                                         'notes_file',
-                                        event.target.files?.[0] ??
-                                        null,
+                                        event.target.files?.[0] ?? null,
                                     )
                                 }
                                 className="input-field cursor-pointer"
@@ -1297,8 +1231,7 @@ function SermonModal({
 
                             {form.data.notes_file && (
                                 <p className="mt-1 text-xs text-muted-foreground">
-                                    Selected:{' '}
-                                    {form.data.notes_file.name}
+                                    Selected: {form.data.notes_file.name}
                                 </p>
                             )}
 
@@ -1323,8 +1256,7 @@ function SermonModal({
                                             form.setData(
                                                 'tags',
                                                 form.data.tags.filter(
-                                                    (item) =>
-                                                        item !== tag,
+                                                    (item) => item !== tag,
                                                 ),
                                             )
                                         }
@@ -1422,10 +1354,7 @@ function SermonModal({
                         className="btn-primary flex-1 justify-center py-2.5 text-sm"
                     >
                         {form.processing ? (
-                            <Loader2
-                                size={16}
-                                className="animate-spin"
-                            />
+                            <Loader2 size={16} className="animate-spin" />
                         ) : (
                             <Check size={16} />
                         )}

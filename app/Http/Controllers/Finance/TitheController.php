@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Finance;
 
 use App\Models\Tithe;
+use App\Support\ChartData;
 use App\Support\Money;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -49,6 +50,27 @@ class TitheController extends GivingController
             'total' => $count,
             'average' => $count ? round($sum / $count, 2) : 0,
             'filtered_total' => $this->unfiltered ? $sum : Money::sum(clone $filtered),
+            'charts' => $this->cachedStat('charts:'.now()->format('Y-m'), fn () => $this->charts(clone $all)),
+        ];
+    }
+
+    /**
+     * Monthly totals for the last 12 months, and how that money was given.
+     *
+     * @return array{monthly: list<array<string, string|float>>, by_method: list<array{label: string, value: float}>}
+     */
+    private function charts(Builder $all): array
+    {
+        [$from, $to] = ChartData::lastMonths(12);
+        $period = fn () => (clone $all)->whereBetween('tithe_date', [$from->toDateString(), $to->toDateTimeString()]);
+        $buckets = ChartData::periods($from, $to)['buckets'];
+
+        return [
+            'monthly' => ChartData::timeline($buckets, [
+                'total' => ChartData::perPeriod($period(), 'tithe_date', 'sum('.Money::sql().')', false),
+                'count' => ChartData::perPeriod($period(), 'tithe_date', 'count(*)', false),
+            ]),
+            'by_method' => ChartData::byColumn($period(), 'payment_method', 'sum('.Money::sql().')', 6, ChartData::headline(...)),
         ];
     }
 

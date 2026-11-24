@@ -358,6 +358,7 @@ export function MoneyFields<
     methods,
     funds,
     receipt = true,
+    autoCashReference = false,
 }: {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     form: {
@@ -369,8 +370,11 @@ export function MoneyFields<
     methods: string[];
     funds: Opt[];
     receipt?: boolean;
+    /** Cash gifts get a CASH-YYYY-#### reference from the server when saved (offerings, donations). */
+    autoCashReference?: boolean;
 }) {
     const { convert, other, base } = useMoney();
+    const isAutoCash = autoCashReference && form.data.payment_method === 'cash';
     const amt = Number(form.data.amount) || 0;
     const cur = form.data.currency || base;
     const otherCur = cur === 'USD' ? 'LRD' : 'USD';
@@ -426,9 +430,17 @@ export function MoneyFields<
                     <select
                         className={inputCls}
                         value={form.data.payment_method}
-                        onChange={(e) =>
-                            form.setData('payment_method', e.target.value)
-                        }
+                        onChange={(e) => {
+                            form.setData('payment_method', e.target.value);
+                            // A reference typed for another method is dropped, so cash gets a generated one.
+                            if (
+                                autoCashReference &&
+                                e.target.value === 'cash' &&
+                                !form.data.reference_number.startsWith('CASH-')
+                            ) {
+                                form.setData('reference_number', '');
+                            }
+                        }}
                     >
                         {methods.map((m) => (
                             <option key={m} value={m}>
@@ -459,13 +471,24 @@ export function MoneyFields<
             <div className="grid grid-cols-2 gap-4">
                 <Field label="Reference #" error={form.errors.reference_number}>
                     <input
-                        className={inputCls}
+                        className={`${inputCls} ${isAutoCash ? 'cursor-not-allowed bg-muted font-mono text-muted-foreground' : ''}`}
                         value={form.data.reference_number}
                         onChange={(e) =>
                             form.setData('reference_number', e.target.value)
                         }
-                        placeholder="CHK-… / MoMo ID"
+                        readOnly={isAutoCash}
+                        placeholder={
+                            isAutoCash
+                                ? 'Generated when saved'
+                                : 'CHK-… / MoMo ID'
+                        }
                     />
+                    {isAutoCash && (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                            Cash gifts get a CASH-{new Date().getFullYear()}
+                            -#### reference automatically.
+                        </p>
+                    )}
                 </Field>
                 {receipt && (
                     <Field label="Receipt #" error={form.errors.receipt_number}>

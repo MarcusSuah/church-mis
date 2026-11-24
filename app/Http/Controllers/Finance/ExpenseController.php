@@ -6,6 +6,7 @@ use App\Enums\ExpenseCategory;
 use App\Enums\PaymentMethod;
 use App\Http\Controllers\Sacraments\RecordsController;
 use App\Models\Expense;
+use App\Support\ChartData;
 use App\Support\ChurchSettings;
 use App\Support\Money;
 use Illuminate\Database\Eloquent\Builder;
@@ -80,6 +81,29 @@ class ExpenseController extends RecordsController
             'filtered_total' => $this->unfiltered
                 ? $this->cachedStat('sum', fn () => Money::sum($this->wholeTable($all)))
                 : Money::sum(clone $filtered),
+            'charts' => $this->cachedStat('charts:'.now()->format('Y-m'), fn () => $this->charts(clone $all)),
+        ];
+    }
+
+    /**
+     * Spending per month for the last 12 months split by status, and where
+     * the approved and paid money went by category.
+     *
+     * @return array{monthly: list<array<string, string|float>>, by_category: list<array{label: string, value: float}>}
+     */
+    private function charts(Builder $all): array
+    {
+        [$from, $to] = ChartData::lastMonths(12);
+        $period = fn () => (clone $all)->whereBetween('expense_date', [$from->toDateString(), $to->toDateTimeString()]);
+        $sum = 'sum('.Money::sql().')';
+        $series = [];
+        foreach (['Paid', 'Approved', 'Pending'] as $status) {
+            $series[strtolower($status)] = ChartData::perPeriod($period()->where('status', $status), 'expense_date', $sum, false);
+        }
+
+        return [
+            'monthly' => ChartData::timeline(ChartData::periods($from, $to)['buckets'], $series),
+            'by_category' => ChartData::byColumn($period()->whereIn('status', ['Paid', 'Approved']), 'category', $sum, 6, ChartData::headline(...)),
         ];
     }
 

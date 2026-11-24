@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Observers\AuditObserver;
 use App\Services\ActivityLogger;
 use Closure;
 use Illuminate\Http\Request;
@@ -16,9 +17,39 @@ class TrackActivity
     /** Background / noisy routes that aren't worth recording. */
     private const IGNORE = ['login.store', 'logout', 'password.change.update', 'notifications.read', 'notifications.read-all', 'notifications.toggle-read', 'sermons.view', 'prayer-requests.pray', 'uploads.*', 'storage.*'];
 
+    /** Exports, PDFs and file downloads: recorded in the audit log as EXPORT. */
+    private const DOWNLOADS = ['*.export', '*.pdf', '*.download', 'finance.receipts'];
+
+    /** Route name prefix => audit log module. */
+    private const DOWNLOAD_MODULES = [
+        'reports' => 'Reports', 'finance' => 'Finance', 'certificates' => 'Sacraments', 'documents' => 'Content',
+        'members' => 'Members', 'member-directory' => 'Members', 'families' => 'Members', 'member' => 'Members',
+        'audit-logs' => 'Security', 'activity' => 'Security',
+    ];
+
     public function handle(Request $request, Closure $next): Response
     {
         return $next($request);
+    }
+
+    /** "Downloaded reports PDF (finance, this_year)" in the audit log, so exports of church data are traceable. */
+    private function auditDownload(Request $request): void
+    {
+        $route = (string) $request->route()?->getName();
+        $prefix = explode('.', $route)[0];
+        $details = collect(['type', 'range', 'format'])
+            ->map(fn (string $key) => $request->query($key))
+            ->filter(fn ($value) => is_string($value) && $value !== '')
+            ->implode(', ');
+
+        AuditObserver::note(
+            'EXPORT',
+            self::DOWNLOAD_MODULES[$prefix] ?? 'System',
+            'Downloaded '.str_replace(['.', '-'], ' ', $route).($details !== '' ? " ({$details})" : ''),
+            // audit_logs.table_name is required: the area the data came from.
+            $prefix !== '' ? $prefix : 'downloads',
+            ['route' => $route, 'path' => $request->path()],
+        );
     }
 
     public function terminate(Request $request, Response $response): void
@@ -29,6 +60,13 @@ class TrackActivity
         }
 
         $method = $request->method();
+        if ($method === 'GET' && $request->routeIs(...self::DOWNLOADS)) {
+            if ($response->getStatusCode() < 400) {
+                $this->auditDownload($request);
+            }
+
+            return;
+        }
         if ($method === 'GET') {
             // Only real page visits — not partial reloads, prefetches or downloads.
             if ($request->header('X-Inertia-Partial-Data') || $request->header('Purpose') === 'prefetch' || $request->header('X-Inertia-Prefetch')) {

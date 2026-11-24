@@ -49,7 +49,7 @@ test('pastoral care, baptism, communion, wedding and funeral records can be mana
     expect($case->fresh()->status)->toBe('Completed');
     $a = $this->actingAs($this->admin);
 
-    $a->post('/baptisms', ['member_id' => $member->id, 'candidate_name' => 'Ruth Owusu', 'baptism_date' => '2026-06-08', 'baptism_type' => 'immersion', 'certificate_issued' => false])->assertSessionHasNoErrors();
+    $a->post('/baptisms', ['member_id' => $member->id, 'candidate_name' => 'Ruth Owusu', 'baptism_date' => '2026-06-08', 'baptism_type' => 'immersion', 'certificate_issued' => false, 'candidate_photo' => '/storage/photos/ruth.jpg', 'officiant' => 'Rev. Mensah', 'location' => 'Main chapel', 'witnesses' => 'Esi, Kojo', 'notes' => 'Sunday service'])->assertSessionHasNoErrors();
     expect($member->fresh()->baptized)->toBeTrue();
     $a->post('/baptisms', ['candidate_name' => '', 'baptism_date' => '', 'baptism_type' => 'dunk'])->assertSessionHasErrors(['candidate_name', 'baptism_date', 'baptism_type']);
 

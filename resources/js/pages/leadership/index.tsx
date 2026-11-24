@@ -22,6 +22,7 @@ import ImageUploadField from '@/components/ssbcms/ImageUploadField';
 import { formatLongDate } from '@/lib/format';
 import { destroy, index, store, update } from '@/routes/leadership';
 import { useMemberOptionsSearch } from '@/hooks/use-member-options-search';
+import { useSearchParam } from '@/hooks/use-search-param';
 
 type Leader = {
     id: string;
@@ -157,6 +158,7 @@ export default function Leadership({
     can,
 }: Props) {
     const [search, setSearch] = useState('');
+    useSearchParam(setSearch);
     const [roleFilter, setRoleFilter] = useState('All');
     const [viewing, setViewing] = useState<Leader | null>(null);
     const [editing, setEditing] = useState<Leader | 'new' | null>(null);
@@ -458,7 +460,7 @@ function ProfileModal({
                                 <img
                                     src={l.photo_url}
                                     alt=""
-                                    className="absolute inset-0 h-full w-full  object-cover object-top"
+                                    className="absolute inset-0 h-full w-full object-cover object-top"
                                 />
                             </>
                         ) : (
@@ -821,11 +823,11 @@ function MemberPicker({
         const s = q.toLowerCase();
         return s
             ? options.filter(
-                (m) =>
-                    `${m.first_name} ${m.last_name}`
-                        .toLowerCase()
-                        .includes(s) || m.email?.toLowerCase().includes(s),
-            )
+                  (m) =>
+                      `${m.first_name} ${m.last_name}`
+                          .toLowerCase()
+                          .includes(s) || m.email?.toLowerCase().includes(s),
+              )
             : options;
     }, [options, q]);
 

@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\System;
 
 use App\Http\Controllers\Controller;
+use App\Support\PublicFile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * Backs the ImageUploadField component (member photos etc.). Stores the file
@@ -27,6 +27,7 @@ class UploadController extends Controller
 
         $path = $request->file('file')->store('uploads/images', 'public');
 
-        return response()->json(['url' => Storage::disk('public')->url($path)]);
+        // Root-relative, so the saved URL works on every host (see PublicFile).
+        return response()->json(['url' => PublicFile::url($path)]);
     }
 }

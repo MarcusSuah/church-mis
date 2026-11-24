@@ -14,6 +14,8 @@ import {
     selectCls,
     today,
 } from '@/components/finance/shared';
+import { ExpenseCharts } from '@/components/finance/dashboard-charts';
+import type { ExpenseChartData } from '@/components/finance/dashboard-charts';
 import Icon from '@/components/ssbcms/AppIcon';
 import type { PageMeta } from '@/components/ssbcms/Pagination';
 import {
@@ -58,6 +60,7 @@ type Stats = {
     total: number;
     pending: number;
     filtered_total: number;
+    charts?: ExpenseChartData;
 };
 type Props = Lists & {
     records: Expense[];
@@ -149,6 +152,7 @@ export default function Expenses({
                     },
                 ]}
             />
+            <ExpenseCharts charts={stats.charts} currency={c} />
             <FilterBar total={total} danger>
                 <SearchInput
                     value={values.search}

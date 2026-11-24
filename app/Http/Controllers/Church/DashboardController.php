@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\AttendanceSession;
 use App\Models\AuditLog;
 use App\Models\Baptism;
+use App\Models\Board;
+use App\Models\BoardMember;
 use App\Models\Department;
 use App\Models\Donation;
 use App\Models\Event;
@@ -16,13 +18,13 @@ use App\Models\Offering;
 use App\Models\PrayerRequest;
 use App\Models\Tithe;
 use App\Models\User;
+use App\Models\UserActivity;
 use App\Support\Birthdays;
 use App\Support\Money;
 use App\Support\SqlDate;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -70,15 +72,7 @@ class DashboardController extends Controller
                 'absent' => (int) $s->total_absent,
             ]),
             'givingTrend' => $this->givingTrend($now, $givingByMonth),
-            'activity' => AuditLog::latest('created_at')->limit(7)->get()->map(fn (AuditLog $l) => [
-                'by_name' => $l->performed_by_name ?? User::where('email', $l->performed_by)->value('name') ?? ($l->performed_by === 'system' ? 'System' : $l->performed_by),
-                'id' => $l->id,
-                'action' => $l->action,
-                'module' => $l->module,
-                'description' => $l->description,
-                'by' => $l->performed_by,
-                'at' => $l->created_at?->toIso8601String(),
-            ]),
+            'activity' => $this->recentActivity($request->user()),
             'events' => Event::where('start_date', '>=', $now->startOfDay())->where('status', '!=', 'Cancelled')->orderBy('start_date')->limit(5)->get()
                 ->map(fn (Event $e) => [
                     'id' => $e->id, 'title' => $e->title, 'start' => $e->start_date?->toIso8601String(),
@@ -92,12 +86,56 @@ class DashboardController extends Controller
             'quick' => [
                 'departments' => Department::count(),
                 'ministries' => Ministry::count(),
-                'boards' => Schema::hasTable('ministry_boards') ? DB::table('ministry_boards')->where('is_active', true)->count() : 0,
+                'boards' => Board::where('is_active', true)->count(),
+                // People serving on active boards, each counted once even if they sit on several.
+                'board_members' => BoardMember::whereHas('board', fn ($q) => $q->where('is_active', true))->distinct()->count('member_id'),
                 'baptisms_ytd' => Baptism::whereYear('baptism_date', $now->year)->count(),
             ],
             // No bcrypt check on every load (F01/F15): the flag already says whether a new password is required.
             'mustChangePassword' => (bool) $request->user()->must_change_credentials,
         ]);
+    }
+
+    /** Sign-in and security events shown in the feed (page views and form posts are left to the Activity Log). */
+    private const FEED_EVENTS = ['login', 'logout', 'login_failed', 'password_changed', 'blocked'];
+
+    /** Rows shown in the dashboard's recent activity feed. */
+    private const FEED_SIZE = 10;
+
+    /**
+     * Recent activity across the whole system: every audited record change
+     * and export (audit_logs), merged with sign-ins and security events
+     * (user_activities) for staff allowed to see the Activity Log.
+     *
+     * @return list<array{id: string, action: string, module: string, description: ?string, by: ?string, by_name: string, at: ?string}>
+     */
+    private function recentActivity(User $viewer): array
+    {
+        $changes = AuditLog::latest('created_at')->limit(self::FEED_SIZE)->get()->map(fn (AuditLog $l) => [
+            'id' => (string) $l->id,
+            'action' => $l->action,
+            'module' => $l->module ?? 'System',
+            'description' => $l->description,
+            'by' => $l->performed_by,
+            'by_name' => $l->performed_by_name ?? ($l->performed_by === 'system' ? 'System' : (string) $l->performed_by),
+            'at' => $l->created_at?->toIso8601String(),
+        ]);
+
+        // Failed sign-ins name the email that was tried, so only Activity Log readers see these.
+        $security = $viewer->can('activity.view')
+            ? UserActivity::whereIn('event', self::FEED_EVENTS)->latest('created_at')->limit(self::FEED_SIZE)->get()
+                ->map(fn (UserActivity $a) => [
+                    'id' => "activity-{$a->id}",
+                    'action' => strtoupper($a->event),
+                    'module' => 'Security',
+                    'description' => $a->description,
+                    'by' => $a->email,
+                    'by_name' => $a->user_name ?: ($a->email ?: 'Unknown'),
+                    'at' => $a->created_at?->toIso8601String(),
+                ])
+            : collect();
+
+        return $changes->concat($security)->sortByDesc('at')->take(self::FEED_SIZE)->values()->all();
     }
 
     /**

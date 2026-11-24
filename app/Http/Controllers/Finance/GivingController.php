@@ -68,6 +68,30 @@ abstract class GivingController extends RecordsController
         return $prefix.str_pad((string) $n, 4, '0', STR_PAD_LEFT);
     }
 
+    /**
+     * Cash has no bank or mobile-money reference, so one is generated when the
+     * cashier leaves it blank: CASH-2026-0001, shared by offerings and donations.
+     * An existing record keeps its reference when edited.
+     */
+    protected function withCashReference(array $data, ?Model $record): array
+    {
+        if (($data['payment_method'] ?? null) === PaymentMethod::Cash->value && empty($data['reference_number'])) {
+            $data['reference_number'] = $record?->reference_number ?: self::nextCashReference();
+        }
+
+        return $data;
+    }
+
+    /** Next cash reference, from a locked counter like receipt numbers (never repeats). */
+    public static function nextCashReference(): string
+    {
+        $prefix = 'CASH-'.now()->format('Y').'-';
+        $n = Sequence::next('cash-reference:'.now()->format('Y'),
+            fn () => Sequence::highestIn(['offerings', 'donations'], 'reference_number', $prefix));
+
+        return $prefix.str_pad((string) $n, 4, '0', STR_PAD_LEFT);
+    }
+
     /** Members are picked with the type-ahead lookup (/lookup/members), not a full list (F07). */
     protected function extraProps(): array
     {

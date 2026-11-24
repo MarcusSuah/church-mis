@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Finance;
 
 use App\Models\Donation;
+use App\Support\ChartData;
 use App\Support\Money;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -35,7 +36,7 @@ class DonationController extends GivingController
 
     protected function prepare(array $data, ?Model $record = null): array
     {
-        $data = $this->prepareGiving($data, $record, 'donor_name');
+        $data = $this->withCashReference($this->prepareGiving($data, $record, 'donor_name'), $record);
         if ($data['is_anonymous'] ?? false) {
             $data['donor_name'] = 'Anonymous Donor';
         }
@@ -63,6 +64,28 @@ class DonationController extends GivingController
             'filtered_total' => $this->unfiltered
                 ? $this->cachedStat('sum', fn () => Money::sum($this->wholeTable($all)))
                 : Money::sum(clone $filtered),
+            'charts' => $this->cachedStat('charts:'.now()->format('Y-m'), fn () => $this->charts(clone $all)),
+        ];
+    }
+
+    /**
+     * One-time and recurring giving per month for the last 12 months, and
+     * which funds the year's donations went to.
+     *
+     * @return array{monthly: list<array<string, string|float>>, by_fund: list<array{label: string, value: float}>}
+     */
+    private function charts(Builder $all): array
+    {
+        [$from, $to] = ChartData::lastMonths(12);
+        $period = fn () => (clone $all)->whereBetween('donation_date', [$from->toDateString(), $to->toDateTimeString()]);
+        $sum = 'sum('.Money::sql().')';
+
+        return [
+            'monthly' => ChartData::timeline(ChartData::periods($from, $to)['buckets'], [
+                'one_time' => ChartData::perPeriod($period()->where('is_recurring', false), 'donation_date', $sum, false),
+                'recurring' => ChartData::perPeriod($period()->where('is_recurring', true), 'donation_date', $sum, false),
+            ]),
+            'by_fund' => ChartData::byColumn($period(), 'fund_name', $sum),
         ];
     }
 

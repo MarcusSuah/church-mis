@@ -30,6 +30,7 @@ use App\Http\Controllers\Members\MemberLookupController;
 use App\Http\Controllers\Members\MemberPortalController;
 use App\Http\Controllers\Members\PendingRegistrationController;
 use App\Http\Controllers\Members\PublicRegistrationController;
+use App\Http\Controllers\ReportSignatureController;
 use App\Http\Controllers\Sacraments\BaptismController;
 use App\Http\Controllers\Sacraments\CertificateController;
 use App\Http\Controllers\Sacraments\CommunionController;
@@ -43,6 +44,7 @@ use App\Http\Controllers\System\AuditLogController;
 use App\Http\Controllers\System\ChurchSettingsController;
 use App\Http\Controllers\System\ContactMessageController;
 use App\Http\Controllers\System\GalleryAlbumController;
+use App\Http\Controllers\System\GlobalSearchController;
 use App\Http\Controllers\System\NotificationController;
 use App\Http\Controllers\System\SitePageController;
 use App\Http\Controllers\System\UploadController;
@@ -240,6 +242,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
         Route::get('reports/pdf', [ReportController::class, 'pdf'])->name('reports.pdf');
         Route::get('reports/export', [ReportController::class, 'export'])->name('reports.export');
+        Route::post('/reports/signatures', [ReportSignatureController::class, 'store'])
+            ->name('reports.signatures.store');
+        Route::get('/reports/signatures/{signature}/image', [ReportSignatureController::class, 'image'])
+            ->name('reports.signatures.image');
+
     });
     Route::get('birthdays', [BirthdayController::class, 'index'])->middleware('permission:birthdays.view')->name('birthdays.index');
     Route::post('birthdays/send', [BirthdayController::class, 'send'])->middleware('permission:birthdays.send')->name('birthdays.send');
@@ -305,6 +312,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('lookup/members', MemberLookupController::class)
         ->middleware('throttle:120,1')
         ->name('lookup.members');
+    // Header live search across every module the user may open (staff only).
+    Route::get('search', GlobalSearchController::class)
+        ->middleware('throttle:120,1')
+        ->name('search');
     Route::post('uploads/image', [UploadController::class, 'image'])
         ->middleware('throttle:30,1')
         ->name('uploads.image');

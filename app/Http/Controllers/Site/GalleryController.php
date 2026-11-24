@@ -13,6 +13,7 @@ use App\Models\Ministry;
 use App\Models\Sermon;
 use App\Support\ChurchSettings;
 use App\Support\ListQuery;
+use App\Support\PublicFile;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -21,9 +22,6 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
-use App\Support\RichText;
-use App\Enums\NotificationType;
-use App\Services\ActivityNotifier;
 
 /**
  * Public photo gallery. Combines albums created by staff with images already
@@ -48,20 +46,20 @@ class GalleryController extends Controller
         $query = GalleryAlbum::published()
             ->whereHas('photos')
             ->with(['photos', 'department:id,name'])
-            ->when($filters['department'] !== '', fn(Builder $q) => $q->whereIn('department_id', Department::whereSlugOrKey($filters['department'])->select('id')))
-            ->when($filters['tag'] !== '', fn(Builder $q) => $q->whereJsonContains('tags', $filters['tag']))
-            ->when($filters['from'], fn(Builder $q, $from) => $q->where('event_date', '>=', $from))
-            ->when($filters['to'], fn(Builder $q, $to) => $q->where('event_date', '<=', $to));
+            ->when($filters['department'] !== '', fn (Builder $q) => $q->whereIn('department_id', Department::whereSlugOrKey($filters['department'])->select('id')))
+            ->when($filters['tag'] !== '', fn (Builder $q) => $q->whereJsonContains('tags', $filters['tag']))
+            ->when($filters['from'], fn (Builder $q, $from) => $q->where('event_date', '>=', $from))
+            ->when($filters['to'], fn (Builder $q, $to) => $q->where('event_date', '<=', $to));
         ListQuery::search($query, $filters['search'], ['title', 'description', 'tags']);
 
-        $albums = $query->get()->map(fn(GalleryAlbum $a) => [
+        $albums = $query->get()->map(fn (GalleryAlbum $a) => [
             'id' => $a->id,
             'title' => $a->title,
             'description' => $a->description,
             'event_date' => $a->event_date?->toDateString(),
             'department' => $a->department?->name,
             'tags' => $a->tags ?? [],
-            'photos' => $a->photos->map(fn(GalleryPhoto $p) => [
+            'photos' => $a->photos->map(fn (GalleryPhoto $p) => [
                 'id' => $p->id,
                 'url' => $p->url,
                 'caption' => $p->caption,
@@ -73,17 +71,17 @@ class GalleryController extends Controller
         $deptIds = $filters['department'] !== ''
             ? Department::whereSlugOrKey($filters['department'])->pluck('id')->all()
             : null;
-        $site = $siteAll->filter(fn(array $a) => $this->passes($a, $filters, $deptIds));
+        $site = $siteAll->filter(fn (array $a) => $this->passes($a, $filters, $deptIds));
 
         // 3. Merge, newest first, then page it for infinite scroll.
         $all = $albums->concat($site)
-            ->sortByDesc(fn(array $a) => $a['event_date'] ?? '')
+            ->sortByDesc(fn (array $a) => $a['event_date'] ?? '')
             ->values();
 
         $page = LengthAwarePaginator::resolveCurrentPage();
 
         return Inertia::render('site/gallery', [
-            'albums' => Inertia::scroll(fn() => new LengthAwarePaginator(
+            'albums' => Inertia::scroll(fn () => new LengthAwarePaginator(
                 $all->forPage($page, self::PER_PAGE)->values(),
                 $all->count(),
                 self::PER_PAGE,
@@ -92,7 +90,7 @@ class GalleryController extends Controller
             )),
             'filters' => $filters,
             'departments' => Department::where('is_active', true)
-                ->where(fn(Builder $q) => $q->whereHas('galleryAlbums')->orWhereNotNull('banner_url'))
+                ->where(fn (Builder $q) => $q->whereHas('galleryAlbums')->orWhereNotNull('banner_url'))
                 ->orderBy('name')->get(['id', 'slug', 'name']),
             'tags' => GalleryAlbum::published()->pluck('tags')->flatten()
                 ->merge($siteAll->pluck('tags')->flatten())
@@ -111,17 +109,17 @@ class GalleryController extends Controller
     {
         return collect()
             ->concat(Event::where('is_public', true)->where('status', '!=', 'Cancelled')->whereNotNull('banner_url')->get()
-                ->map(fn(Event $e) => $this->item('events', $e->id, $e->title, $e->banner_url, $e->start_date?->toDateString(), $e->description)))
+                ->map(fn (Event $e) => $this->item('events', $e->id, $e->title, $e->banner_url, $e->start_date?->toDateString(), $e->description)))
             ->concat(Sermon::where('is_published', true)->whereNotNull('thumbnail_url')->get()
-                ->map(fn(Sermon $s) => $this->item('sermons', $s->id, $s->title, $s->thumbnail_url, $s->sermon_date ? Carbon::parse($s->sermon_date)->toDateString() : null, $s->description)))
+                ->map(fn (Sermon $s) => $this->item('sermons', $s->id, $s->title, $s->thumbnail_url, $s->sermon_date ? Carbon::parse($s->sermon_date)->toDateString() : null, $s->description)))
             ->concat(Announcement::where('is_published', true)->whereNotNull('banner_url')->get()
-                ->map(fn(Announcement $a) => $this->item('news', $a->id, $a->title, $a->banner_url, $a->created_at?->toDateString(), $a->content)))
+                ->map(fn (Announcement $a) => $this->item('news', $a->id, $a->title, $a->banner_url, $a->created_at?->toDateString(), $a->content)))
             ->concat(Ministry::where('is_active', true)->whereNotNull('banner_url')->get()
-                ->map(fn(Ministry $m) => $this->item('ministries', $m->id, $m->name, $m->banner_url, null, $m->description)))
+                ->map(fn (Ministry $m) => $this->item('ministries', $m->id, $m->name, $m->banner_url, null, $m->description)))
             ->concat(Department::where('is_active', true)->whereNotNull('banner_url')->get()
-                ->map(fn(Department $d) => $this->item('departments', $d->id, $d->name, $d->banner_url, null, $d->description, $d->name, $d->id)))
+                ->map(fn (Department $d) => $this->item('departments', $d->id, $d->name, $d->banner_url, null, $d->description, $d->name, $d->id)))
             ->concat(HeroSlide::active()->get()
-                ->map(fn(HeroSlide $h) => $this->item('highlights', $h->id, $h->title, $h->image_url, null, $h->subtitle)))
+                ->map(fn (HeroSlide $h) => $this->item('highlights', $h->id, $h->title, $h->image_url, null, $h->subtitle)))
             ->filter()
             ->values();
     }
@@ -145,7 +143,7 @@ class GalleryController extends Controller
             'department' => $department,
             'department_id' => $departmentId,
             'tags' => [$tag],
-            'photos' => [['id' => "{$tag}-{$id}", 'url' => $image, 'caption' => $title]],
+            'photos' => [['id' => "{$tag}-{$id}", 'url' => PublicFile::normalize($image), 'caption' => $title]],
         ];
     }
 

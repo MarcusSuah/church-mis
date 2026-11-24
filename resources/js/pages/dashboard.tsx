@@ -34,6 +34,7 @@ type Props = {
         departments: number;
         ministries: number;
         boards: number;
+        board_members: number;
         baptisms_ytd: number;
     };
     mustChangePassword: boolean;
@@ -290,6 +291,7 @@ export default function Dashboard(props: Props) {
                         id: 'qs-boards',
                         label: 'Active Boards',
                         value: quick.boards,
+                        sub: `${quick.board_members} board member${quick.board_members === 1 ? '' : 's'}`,
                         icon: 'BriefcaseIcon',
                         href: '/boards',
                     },
@@ -320,6 +322,11 @@ export default function Dashboard(props: Props) {
                             <p className="text-xs text-muted-foreground">
                                 {s.label}
                             </p>
+                            {'sub' in s && s.sub && (
+                                <p className="text-[11px] text-muted-foreground/80">
+                                    {s.sub}
+                                </p>
+                            )}
                         </div>
                     </Link>
                 ))}

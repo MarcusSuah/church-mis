@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\PublicFile;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Storage;
@@ -19,9 +20,10 @@ class GalleryPhoto extends Model
         return $this->belongsTo(GalleryAlbum::class, 'album_id');
     }
 
+    /** Root-relative, so photos show on every host (see PublicFile). */
     public function getUrlAttribute(): string
     {
-        return Storage::disk('public')->url($this->image_path);
+        return PublicFile::url($this->image_path);
     }
 
     protected static function booted(): void

@@ -7,8 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use App\Services\ActivityNotifier;
-use App\Enums\NotificationType;
+
 /**
  * A photo album for the public gallery. May belong to a sermon, an event
  * and/or a department. Holds at most MAX_PHOTOS photos.
@@ -64,5 +63,4 @@ class GalleryAlbum extends Model
     {
         return $query->where('is_published', true);
     }
-    
 }

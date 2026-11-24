@@ -36,6 +36,7 @@ import {
     update as updateMemberRoute,
 } from '@/routes/ministries/members';
 import { useMemberOptionsSearch } from '@/hooks/use-member-options-search';
+import { useSearchParam } from '@/hooks/use-search-param';
 
 type Ministry = {
     id: string;
@@ -234,6 +235,7 @@ export default function Ministries({
     can,
 }: Props) {
     const [search, setSearch] = useState('');
+    useSearchParam(setSearch);
     const [category, setCategory] = useState('All');
     const [editing, setEditing] = useState<Ministry | 'new' | null>(null);
     const [picking, setPicking] = useState(false);
@@ -388,7 +390,10 @@ export default function Ministries({
                                                 <h3
                                                     className="cursor-pointer font-display text-lg leading-snug font-bold text-foreground transition-colors hover:text-accent"
                                                     onClick={() =>
-                                                        go({ ministry: m.slug ?? m.id })
+                                                        go({
+                                                            ministry:
+                                                                m.slug ?? m.id,
+                                                        })
                                                     }
                                                 >
                                                     {m.name}
@@ -439,7 +444,10 @@ export default function Ministries({
                                             <button
                                                 type="button"
                                                 onClick={() =>
-                                                    go({ ministry: m.slug ?? m.id })
+                                                    go({
+                                                        ministry:
+                                                            m.slug ?? m.id,
+                                                    })
                                                 }
                                                 className="text-xs font-medium text-primary hover:underline"
                                             >

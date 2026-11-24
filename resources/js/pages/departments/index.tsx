@@ -47,6 +47,7 @@ import {
     update as updateMemberRoute,
 } from '@/routes/departments/members';
 import { useMemberOptionsSearch } from '@/hooks/use-member-options-search';
+import { useSearchParam } from '@/hooks/use-search-param';
 
 type Department = {
     id: string;
@@ -216,6 +217,7 @@ export default function Departments({
     can,
 }: Props) {
     const [search, setSearch] = useState('');
+    useSearchParam(setSearch);
     const [category, setCategory] = useState('All');
     const [tab, setTab] = useState<'members' | 'activities'>('members');
     const [editing, setEditing] = useState<Department | 'new' | null>(null);
@@ -422,7 +424,10 @@ export default function Departments({
                                                 <h3
                                                     className="cursor-pointer font-display text-lg leading-snug font-bold text-foreground transition-colors hover:text-accent"
                                                     onClick={() =>
-                                                        go({ department: d.slug ?? d.id })
+                                                        go({
+                                                            department:
+                                                                d.slug ?? d.id,
+                                                        })
                                                     }
                                                 >
                                                     {d.name}
@@ -478,7 +483,10 @@ export default function Departments({
                                             <button
                                                 type="button"
                                                 onClick={() =>
-                                                    go({ department: d.slug ?? d.id })
+                                                    go({
+                                                        department:
+                                                            d.slug ?? d.id,
+                                                    })
                                                 }
                                                 className="btn-primary flex-1 py-1.5 text-xs"
                                             >

@@ -28,11 +28,13 @@ class MemberLookupController extends Controller
 
         $query = Member::query()->select(['id', 'member_id', 'first_name', 'last_name', 'photo_url', 'status']);
 
+        // ?id= resolves the member already linked to a record; otherwise the
+        // first 20 matches, or the first 20 alphabetically when nothing is typed
+        // yet, so the picker lists members as soon as it opens.
         $results = ! empty($data['id'])
             ? $query->whereKey($data['id'])->limit(1)->get()
-            : (filled($data['q'] ?? null)
-                ? $query->search($data['q'])->orderBy('last_name')->orderBy('first_name')->limit(20)->get()
-                : collect());
+            : $query->when(filled($data['q'] ?? null), fn ($q) => $q->search($data['q']))
+                ->orderBy('last_name')->orderBy('first_name')->limit(20)->get();
 
         return response()->json([
             'data' => $results->map(fn (Member $m) => [

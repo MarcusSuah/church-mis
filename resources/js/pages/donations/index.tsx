@@ -15,6 +15,8 @@ import {
     selectCls,
     today,
 } from '@/components/finance/shared';
+import { DonationCharts } from '@/components/finance/dashboard-charts';
+import type { DonationChartData } from '@/components/finance/dashboard-charts';
 import Icon from '@/components/ssbcms/AppIcon';
 import MemberPicker from '@/components/ssbcms/MemberPicker';
 import type { PageMeta } from '@/components/ssbcms/Pagination';
@@ -55,6 +57,7 @@ type Stats = {
     donors: number;
     recurring: number;
     filtered_total: number;
+    charts?: DonationChartData;
 };
 type Props = Lists & {
     records: Donation[];
@@ -123,6 +126,7 @@ export default function Donations({
                     },
                 ]}
             />
+            <DonationCharts charts={stats.charts} currency={c} />
             <FilterBar total={total}>
                 <SearchInput
                     value={values.search}
@@ -397,6 +401,7 @@ function DonationModal({
                     dateKey="donation_date"
                     methods={lists.methods}
                     funds={lists.funds}
+                    autoCashReference
                 />
                 <label className="flex cursor-pointer items-center gap-3 rounded-xl bg-muted/50 p-3">
                     <input

@@ -1,5 +1,6 @@
 import { Head, useForm } from '@inertiajs/react';
 import { useState } from 'react';
+import { BudgetCharts } from '@/components/finance/dashboard-charts';
 import type { Can, Opt } from '@/components/finance/shared';
 import {
     FinancePageHeader,
@@ -149,6 +150,7 @@ export default function Budgets({
                     },
                 ]}
             />
+            <BudgetCharts budgets={rows} currency={c} year={year} />
             <div className="card mb-4 flex items-center gap-3 p-4">
                 <label className="text-sm text-muted-foreground">
                     Fiscal year

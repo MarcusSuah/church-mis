@@ -50,6 +50,10 @@ type Offering = {
     member_photo: string | null;
     offering_type: string;
     service_type: string;
+    /** first_service / second_service (Sunday Worship only). */
+    service_session: string | null;
+    /** "Sunday Worship — 1st Service", built by the server. */
+    service_label: string;
     amount: number;
     currency: string;
     payment_method: string;
@@ -69,8 +73,13 @@ type Lists = {
     methods: string[];
     types: string[];
     services: string[];
+    /** value => label, e.g. first_service => "1st Service". */
+    serviceSessions: Record<string, string>;
     cashiers: string[];
 };
+
+/** The only service type split into sessions (App\Enums\ServiceType::SundayWorship). */
+const SUNDAY_WORSHIP = 'Sunday Worship';
 type Stats = {
     this_month: number;
     collections_this_month: number;
@@ -373,8 +382,16 @@ export default function Offerings({
                         <td className="table-cell text-sm text-muted-foreground">
                             {fmtD(o.offering_date)}
                         </td>
-                        <td className="table-cell text-xs text-muted-foreground">
-                            {o.service_type}
+                        <td className="table-cell text-xs">
+                            <span className="font-medium text-foreground">
+                                {o.service_type}
+                            </span>
+                            {o.service_session && (
+                                <span className="mt-0.5 block text-muted-foreground">
+                                    {lists.serviceSessions[o.service_session] ??
+                                        o.service_session}
+                                </span>
+                            )}
                         </td>
                         <AmountCell amount={o.amount} currency={o.currency} />
                         <td className="table-cell">
@@ -446,7 +463,8 @@ function OfferingModal({
         member_id: record?.member_id ?? '',
         member_name: collection ? '' : (record?.member_name ?? ''),
         offering_type: record?.offering_type ?? 'Regular Offering',
-        service_type: record?.service_type ?? 'Sunday Worship',
+        service_type: record?.service_type ?? SUNDAY_WORSHIP,
+        service_session: record?.service_session ?? '',
         amount: record ? String(record.amount) : '',
         currency: record?.currency ?? base,
         payment_method: record?.payment_method ?? 'cash',
@@ -574,12 +592,23 @@ function OfferingModal({
                 )}
 
                 <div className="grid grid-cols-2 gap-4">
-                    <Field label="Service" error={form.errors.service_type}>
+                    <Field
+                        label="Service Type *"
+                        error={form.errors.service_type}
+                    >
                         <select
                             className={inputCls}
                             value={form.data.service_type}
                             onChange={(e) =>
-                                form.setData('service_type', e.target.value)
+                                form.setData((d) => ({
+                                    ...d,
+                                    service_type: e.target.value,
+                                    // Only Sunday Worship has a 1st / 2nd service.
+                                    service_session:
+                                        e.target.value === SUNDAY_WORSHIP
+                                            ? d.service_session
+                                            : '',
+                                }))
                             }
                         >
                             {lists.services.map((t) => (
@@ -587,6 +616,32 @@ function OfferingModal({
                             ))}
                         </select>
                     </Field>
+                    {form.data.service_type === SUNDAY_WORSHIP && (
+                        <Field
+                            label="Service Session *"
+                            error={form.errors.service_session}
+                        >
+                            <select
+                                className={`${inputCls} ${form.errors.service_session ? 'border-danger' : ''}`}
+                                value={form.data.service_session}
+                                onChange={(e) =>
+                                    form.setData(
+                                        'service_session',
+                                        e.target.value,
+                                    )
+                                }
+                            >
+                                <option value="">Choose a service…</option>
+                                {Object.entries(lists.serviceSessions).map(
+                                    ([value, label]) => (
+                                        <option key={value} value={value}>
+                                            {label}
+                                        </option>
+                                    ),
+                                )}
+                            </select>
+                        </Field>
+                    )}
                     <Field label="Offering Type">
                         <select
                             className={inputCls}
@@ -646,6 +701,7 @@ function OfferingModal({
                     methods={lists.methods}
                     funds={lists.funds}
                     receipt={!isCol}
+                    autoCashReference
                 />
             </div>
         </Modal>

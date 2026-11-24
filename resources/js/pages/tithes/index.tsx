@@ -15,6 +15,8 @@ import {
     selectCls,
     today,
 } from '@/components/finance/shared';
+import { TitheCharts } from '@/components/finance/dashboard-charts';
+import type { TitheChartData } from '@/components/finance/dashboard-charts';
 import MemberPicker from '@/components/ssbcms/MemberPicker';
 import type { PageMeta } from '@/components/ssbcms/Pagination';
 import {
@@ -50,6 +52,7 @@ type Stats = {
     total: number;
     average: number;
     filtered_total: number;
+    charts?: TitheChartData;
 };
 type Props = {
     records: Tithe[];
@@ -122,6 +125,7 @@ export default function Tithes({
                     },
                 ]}
             />
+            <TitheCharts charts={stats.charts} currency={c} />
             <FilterBar total={total}>
                 <SearchInput
                     value={values.search}

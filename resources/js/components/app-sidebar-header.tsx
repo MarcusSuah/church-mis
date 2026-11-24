@@ -4,12 +4,12 @@ import {
     ChevronDown,
     KeyRound,
     LogOut,
-    Search,
     Settings,
     User,
     UserPlus,
 } from 'lucide-react';
 import { Breadcrumbs } from '@/components/breadcrumbs';
+import { GlobalSearch } from '@/components/global-search';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -100,19 +100,7 @@ export function AppSidebarHeader({
             </div>
 
             <div className="flex items-center gap-2">
-                {!isMemberOnly && (
-                    <div className="hidden items-center gap-2 rounded-lg bg-muted px-3 py-2 md:flex md:w-72">
-                        <Search className="size-4 shrink-0 text-muted-foreground" />
-                        <input
-                            type="text"
-                            placeholder="Search members, events, sermons..."
-                            className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
-                        />
-                        <kbd className="hidden rounded border border-border bg-background px-1.5 py-0.5 text-xs text-muted-foreground lg:block">
-                            ⌘K
-                        </kbd>
-                    </div>
-                )}
+                {!isMemberOnly && <GlobalSearch />}
 
                 {can('members.create') && (
                     <Button

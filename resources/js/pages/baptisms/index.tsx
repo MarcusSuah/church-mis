@@ -331,6 +331,64 @@ export default function Baptisms({
     );
 }
 
+type BaptismForm = {
+    member_id: string;
+    candidate_name: string;
+    candidate_photo: string;
+    baptism_date: string;
+    baptism_type: string;
+    officiant: string;
+    location: string;
+    witnesses: string;
+    certificate_number: string;
+    certificate_issued: boolean;
+    certificate_date: string;
+    notes: string;
+};
+type BaptismField = keyof BaptismForm;
+
+const todayIso = () => new Date().toISOString().slice(0, 10);
+
+/**
+ * The same checks the server makes (BaptismController::rules()), so mistakes
+ * show under each field before the form is sent. The server still validates.
+ * Every field is required except the certificate number.
+ */
+function baptismErrors(d: BaptismForm): Partial<Record<BaptismField, string>> {
+    const errors: Partial<Record<BaptismField, string>> = {};
+    const blank = (v: string) => v.trim() === '';
+
+    if (blank(d.candidate_name))
+        errors.candidate_name =
+            'Enter the full name of the person being baptized.';
+    if (blank(d.baptism_date))
+        errors.baptism_date = 'Choose the date of the baptism.';
+    else if (d.baptism_date > todayIso())
+        errors.baptism_date = 'The baptism date cannot be in the future.';
+    if (blank(d.baptism_type))
+        errors.baptism_type = 'Choose how the baptism was performed.';
+    if (blank(d.officiant))
+        errors.officiant =
+            'Enter the name of the pastor or minister who officiated.';
+    if (blank(d.location))
+        errors.location = 'Enter where the baptism took place.';
+    if (blank(d.witnesses)) errors.witnesses = 'Enter at least one witness.';
+    if (blank(d.candidate_photo))
+        errors.candidate_photo = 'Upload a photo of the candidate.';
+    if (d.certificate_issued && blank(d.certificate_date))
+        errors.certificate_date = 'Choose the date the certificate was issued.';
+    else if (
+        d.certificate_issued &&
+        d.baptism_date &&
+        d.certificate_date < d.baptism_date
+    )
+        errors.certificate_date =
+            'The certificate cannot be issued before the baptism date.';
+    if (blank(d.notes)) errors.notes = 'Add a short note about this baptism.';
+
+    return errors;
+}
+
 function BaptismModal({
     record,
     types,
@@ -340,12 +398,11 @@ function BaptismModal({
     types: string[];
     onClose: () => void;
 }) {
-    const form = useForm({
+    const form = useForm<BaptismForm>({
         member_id: record?.member_id ?? '',
         candidate_name: record?.candidate_name ?? '',
         candidate_photo: record?.candidate_photo ?? '',
-        baptism_date:
-            record?.baptism_date ?? new Date().toISOString().slice(0, 10),
+        baptism_date: record?.baptism_date ?? todayIso(),
         baptism_type: record?.baptism_type ?? 'immersion',
         officiant: record?.officiant ?? '',
         location: record?.location ?? '',
@@ -355,12 +412,44 @@ function BaptismModal({
         certificate_date: record?.certificate_date ?? '',
         notes: record?.notes ?? '',
     });
+    // Fields the user has left (or every field once Save was pressed): only these show client-side messages.
+    const [touched, setTouched] = useState<
+        Partial<Record<BaptismField, boolean>>
+    >({});
+    const [submitted, setSubmitted] = useState(false);
+    const clientErrors = baptismErrors(form.data);
+
+    /** Server message first (it is the final word), then the live client check. */
+    const errorFor = (field: BaptismField): string | undefined =>
+        form.errors[field] ??
+        (submitted || touched[field] ? clientErrors[field] : undefined);
+    const touch = (field: BaptismField) =>
+        setTouched((t) => ({ ...t, [field]: true }));
+    const change = <K extends BaptismField>(
+        field: K,
+        value: BaptismForm[K],
+    ) => {
+        form.setData((d) => ({ ...d, [field]: value }));
+        if (form.errors[field]) form.clearErrors(field);
+    };
+    const invalid = (field: BaptismField) =>
+        errorFor(field)
+            ? `${inputCls} border-danger focus:ring-danger`
+            : inputCls;
+    const aria = (field: BaptismField) => ({
+        'aria-invalid': Boolean(errorFor(field)),
+        onBlur: () => touch(field),
+    });
 
     const save = () => {
+        setSubmitted(true);
+        if (Object.keys(clientErrors).length > 0) return;
         const o = { preserveScroll: true, onSuccess: onClose };
         if (record) form.patch(`/baptisms/${record.id}`, o);
         else form.post('/baptisms', o);
     };
+
+    const errorCount = submitted ? Object.keys(clientErrors).length : 0;
 
     return (
         <Modal
@@ -368,6 +457,12 @@ function BaptismModal({
             onClose={onClose}
             footer={
                 <>
+                    {errorCount > 0 && (
+                        <p className="mr-auto text-xs text-danger" role="alert">
+                            Please fix {errorCount} field
+                            {errorCount === 1 ? '' : 's'} before saving.
+                        </p>
+                    )}
                     <button
                         type="button"
                         onClick={onClose}
@@ -377,62 +472,64 @@ function BaptismModal({
                     </button>
                     <SaveButton
                         saving={form.processing}
-                        disabled={
-                            !form.data.candidate_name || !form.data.baptism_date
-                        }
                         label={record ? 'Update Record' : 'Add Record'}
                         onClick={save}
                     />
                 </>
             }
         >
+            <p className="mb-4 text-xs text-muted-foreground">
+                Fields marked * are required. Only the certificate number may be
+                left blank.
+            </p>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Link to Member">
+                <Field label="Link to Member" error={form.errors.member_id}>
                     <MemberPicker
                         value={form.data.member_id}
                         label={form.data.candidate_name}
                         noneLabel="— Not a member / Guest —"
-                        onChange={(m) =>
+                        onChange={(m) => {
                             form.setData((d) => ({
                                 ...d,
                                 member_id: m?.id ?? '',
                                 candidate_name: m ? m.name : d.candidate_name,
                                 candidate_photo:
                                     m?.photo_url || d.candidate_photo,
-                            }))
-                        }
+                            }));
+                            if (m) touch('candidate_name');
+                        }}
                     />
                 </Field>
                 <Field
                     label="Candidate Name *"
-                    error={form.errors.candidate_name}
+                    error={errorFor('candidate_name')}
                 >
                     <input
-                        className={inputCls}
+                        className={invalid('candidate_name')}
                         value={form.data.candidate_name}
                         onChange={(e) =>
-                            form.setData('candidate_name', e.target.value)
+                            change('candidate_name', e.target.value)
                         }
                         placeholder="Full name"
+                        {...aria('candidate_name')}
                     />
                 </Field>
-                <Field label="Baptism Date *" error={form.errors.baptism_date}>
+                <Field label="Baptism Date *" error={errorFor('baptism_date')}>
                     <input
                         type="date"
-                        className={inputCls}
+                        max={todayIso()}
+                        className={invalid('baptism_date')}
                         value={form.data.baptism_date}
-                        onChange={(e) =>
-                            form.setData('baptism_date', e.target.value)
-                        }
+                        onChange={(e) => change('baptism_date', e.target.value)}
+                        {...aria('baptism_date')}
                     />
                 </Field>
-                <Field label="Baptism Type">
+                <Field label="Baptism Type *" error={errorFor('baptism_type')}>
                     <select
-                        className={inputCls}
+                        className={invalid('baptism_type')}
                         value={form.data.baptism_type}
-                        onChange={(e) =>
-                            form.setData('baptism_type', e.target.value)
-                        }
+                        onChange={(e) => change('baptism_type', e.target.value)}
+                        {...aria('baptism_type')}
                     >
                         {types.map((t) => (
                             <option key={t} value={t}>
@@ -441,79 +538,93 @@ function BaptismModal({
                         ))}
                     </select>
                 </Field>
-                <Field label="Officiant">
+                <Field label="Officiant *" error={errorFor('officiant')}>
                     <input
-                        className={inputCls}
+                        className={invalid('officiant')}
                         value={form.data.officiant}
-                        onChange={(e) =>
-                            form.setData('officiant', e.target.value)
-                        }
+                        onChange={(e) => change('officiant', e.target.value)}
                         placeholder="Pastor / Minister name"
+                        {...aria('officiant')}
                     />
                 </Field>
-                <Field label="Location">
+                <Field label="Location *" error={errorFor('location')}>
                     <input
-                        className={inputCls}
+                        className={invalid('location')}
                         value={form.data.location}
-                        onChange={(e) =>
-                            form.setData('location', e.target.value)
-                        }
+                        onChange={(e) => change('location', e.target.value)}
                         placeholder="Baptismal pool, chapel..."
+                        {...aria('location')}
                     />
                 </Field>
-                <Field label="Witnesses" span>
+                <Field label="Witnesses *" error={errorFor('witnesses')} span>
                     <input
-                        className={inputCls}
+                        className={invalid('witnesses')}
                         value={form.data.witnesses}
-                        onChange={(e) =>
-                            form.setData('witnesses', e.target.value)
-                        }
+                        onChange={(e) => change('witnesses', e.target.value)}
                         placeholder="Names of witnesses"
+                        {...aria('witnesses')}
                     />
                 </Field>
-                <Field label="Certificate Number">
+                <Field
+                    label="Certificate Number (optional)"
+                    error={form.errors.certificate_number}
+                >
                     <input
                         className={inputCls}
                         value={form.data.certificate_number}
                         onChange={(e) =>
-                            form.setData('certificate_number', e.target.value)
+                            change('certificate_number', e.target.value)
                         }
                         placeholder="Left blank → numbered when issued"
                     />
                 </Field>
-                <Field label="Certificate Issued">
+                <Field label="Certificate Issued *">
                     <Toggle
                         value={form.data.certificate_issued}
-                        onChange={(v) => form.setData('certificate_issued', v)}
+                        onChange={(v) => change('certificate_issued', v)}
                     />
                 </Field>
                 {form.data.certificate_issued && (
-                    <Field label="Certificate Date">
+                    <Field
+                        label="Certificate Date *"
+                        error={errorFor('certificate_date')}
+                    >
                         <input
                             type="date"
-                            className={inputCls}
+                            min={form.data.baptism_date || undefined}
+                            className={invalid('certificate_date')}
                             value={form.data.certificate_date}
                             onChange={(e) =>
-                                form.setData('certificate_date', e.target.value)
+                                change('certificate_date', e.target.value)
                             }
+                            {...aria('certificate_date')}
                         />
                     </Field>
                 )}
                 <div className="sm:col-span-2">
                     <ImageUploadField
-                        label="Photo"
+                        label="Photo *"
                         value={form.data.candidate_photo}
-                        onChange={(url) => form.setData('candidate_photo', url)}
+                        onChange={(url) => {
+                            change('candidate_photo', url);
+                            touch('candidate_photo');
+                        }}
                         variant="avatar"
                     />
+                    {errorFor('candidate_photo') && (
+                        <p className="error-text">
+                            {errorFor('candidate_photo')}
+                        </p>
+                    )}
                 </div>
-                <Field label="Notes" span>
+                <Field label="Notes *" error={errorFor('notes')} span>
                     <textarea
                         rows={3}
-                        className={`${inputCls} resize-none`}
+                        className={`${invalid('notes')} resize-none`}
                         value={form.data.notes}
-                        onChange={(e) => form.setData('notes', e.target.value)}
+                        onChange={(e) => change('notes', e.target.value)}
                         placeholder="Additional notes..."
+                        {...aria('notes')}
                     />
                 </Field>
             </div>

@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers\Church;
 
+use App\Enums\NotificationType;
 use App\Http\Controllers\Controller;
 use App\Mail\MemberMessageMail;
 use App\Models\Member;
 use App\Models\MemberMessage;
+use App\Services\ActivityNotifier;
 use App\Support\Birthdays;
 use App\Support\MessageTemplates;
 use App\Support\Notifier;
@@ -23,6 +25,14 @@ use Inertia\Response;
 /** Birthdays & celebrations: see who is celebrating and send them a message. */
 class BirthdayController extends Controller
 {
+    /** Members the picker lists per page. */
+    public const PAGE_SIZE = 50;
+
+    /** Most members one message can go to. */
+    public const MAX_RECIPIENTS = 200;
+
+    private const ACTIVE = 'Active';
+
     public function index(Request $request): Response
     {
         $upcoming = Birthdays::upcoming(31);
@@ -33,8 +43,19 @@ class BirthdayController extends Controller
         return Inertia::render('birthdays/index', [
             'today' => $upcoming->where('days_until', 0)->values(),
             'upcoming' => $upcoming->where('days_until', '>', 0)->values(),
-            // Type-ahead: at most 20 matches, fetched only while the picker is searching (F07).
-            'members' => Inertia::optional(fn () => $this->memberOptions($request->string('member_q')->trim()->toString())),
+            // Active members to pick from: one page at a time, filtered in the database (F07).
+            'members' => Inertia::defer(fn () => $this->memberOptions($request, self::PAGE_SIZE), 'recipients'),
+            'memberTotal' => Inertia::defer(fn () => $this->activeMembers($request)->count(), 'recipients'),
+            // "Select all": every matching active member, up to the send limit. Loaded only on request.
+            'allMembers' => Inertia::optional(fn () => $this->memberOptions($request, self::MAX_RECIPIENTS)),
+            'memberFilters' => [
+                'q' => $this->term($request),
+                'department' => $this->department($request),
+            ],
+            'departments' => Member::query()->where('status', self::ACTIVE)
+                ->whereNotNull('department')->where('department', '!=', '')
+                ->distinct()->orderBy('department')->pluck('department'),
+            'maxRecipients' => self::MAX_RECIPIENTS,
             'preselectMember' => $preselectMember ? $this->presentOption($preselectMember) : null,
             'occasions' => MessageTemplates::OCCASIONS,
             'history' => MemberMessage::with('sender:id,name')->latest()->paginate(10)->through(fn (MemberMessage $m) => [
@@ -53,20 +74,41 @@ class BirthdayController extends Controller
         ]);
     }
 
-    /** @return list<array<string, mixed>> */
-    private function memberOptions(string $term): array
+    /**
+     * Active members matching the picker's search and department, alphabetically.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function memberOptions(Request $request, int $limit): array
     {
-        if (mb_strlen($term) < 2) {
-            return [];
-        }
-
-        return $this->memberOptionQuery()
-            ->search(mb_substr($term, 0, 100))
+        return $this->activeMembers($request)
             ->orderBy('last_name')->orderBy('first_name')
-            ->limit(20)
+            ->limit($limit)
             ->get()
             ->map(fn (Member $m) => $this->presentOption($m))
             ->all();
+    }
+
+    /** Active members, narrowed by ?member_q= and ?member_department=. */
+    private function activeMembers(Request $request): Builder
+    {
+        $term = $this->term($request);
+        $department = $this->department($request);
+
+        return $this->memberOptionQuery()
+            ->where('status', self::ACTIVE)
+            ->when($term !== '', fn (Builder $q) => $q->search($term))
+            ->when($department !== '', fn (Builder $q) => $q->where('department', $department));
+    }
+
+    private function term(Request $request): string
+    {
+        return mb_substr($request->string('member_q')->trim()->toString(), 0, 100);
+    }
+
+    private function department(Request $request): string
+    {
+        return mb_substr($request->string('member_department')->trim()->toString(), 0, 100);
     }
 
     private function memberOptionQuery(): Builder
@@ -94,18 +136,24 @@ class BirthdayController extends Controller
     public function send(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'member_ids' => ['required', 'array', 'min:1', 'max:200'],
-            'member_ids.*' => ['uuid', 'exists:members,id'],
+            'member_ids' => ['required', 'array', 'min:1', 'max:'.self::MAX_RECIPIENTS],
+            // Active members from the picker, or anyone on the birthday list.
+            'member_ids.*' => ['uuid', Rule::exists('members', 'id')->whereNotIn('status', ['Rejected', 'Deceased'])],
             'occasion' => ['required', 'string', Rule::in(array_keys(MessageTemplates::OCCASIONS))],
             'subject' => ['required', 'string', 'max:200'],
             'message' => ['required', 'string', 'max:5000'],
             'channels' => ['required', 'array', 'min:1'],
             'channels.*' => [Rule::in(['in_app', 'email'])],
+        ], [
+            'member_ids.required' => 'Choose at least one member.',
+            'member_ids.max' => 'A message can go to at most '.self::MAX_RECIPIENTS.' members at a time.',
+            'member_ids.*.exists' => 'One of the chosen members can no longer receive messages.',
         ]);
 
         $sent = 0;
         $emailed = 0;
         $noEmail = [];
+        $names = [];
         foreach (Member::whereIn('id', $data['member_ids'])->get() as $member) {
             $age = $member->date_of_birth ? Carbon::parse($member->date_of_birth)->age + (now()->format('m-d') < Carbon::parse($member->date_of_birth)->format('m-d') ? 1 : 0) : '';
             $vars = ['first_name' => $member->first_name, 'full_name' => $member->full_name, 'age' => $age];
@@ -144,6 +192,19 @@ class BirthdayController extends Controller
                 'sent_by' => $request->user()->id,
             ]);
             $sent++;
+            $names[] = $member->full_name;
+        }
+
+        // One staff alert for the whole send (the members get their own message).
+        if ($sent > 0) {
+            $who = implode(', ', array_slice($names, 0, 3)).($sent > 3 ? ' and '.($sent - 3).' more' : '');
+            ActivityNotifier::custom(
+                "{$data['occasion']} message sent",
+                "sent a {$data['occasion']} message “{$data['subject']}” to {$who}",
+                NotificationType::Member,
+                'birthdays.view',
+                '/birthdays',
+            );
         }
 
         $msg = $sent === 1 ? 'Message sent.' : "Message sent to {$sent} members.";

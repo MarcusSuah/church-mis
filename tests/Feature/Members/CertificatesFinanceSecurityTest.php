@@ -5,11 +5,16 @@ use App\Models\AuditLog;
 use App\Models\Baptism;
 use App\Models\Budget;
 use App\Models\DocumentRequest;
+use App\Models\FinanceFund;
 use App\Models\Member;
 use App\Models\Notification;
 use App\Models\Offering;
 use App\Models\User;
+use App\Services\CertificateService;
+use App\Support\CertificateMessages;
+use App\Support\SessionLimiter;
 use Database\Seeders\RolePermissionSeeder;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -25,8 +30,8 @@ function pdfPages(string $content): int
 }
 
 test('every certificate template is a single page, with custom or random messages', function () {
-    $svc = app(\App\Services\CertificateService::class);
-    foreach (array_keys(\App\Support\CertificateMessages::TEMPLATES) as $t) {
+    $svc = app(CertificateService::class);
+    foreach (array_keys(CertificateMessages::TEMPLATES) as $t) {
         foreach (['membership', 'baptism', 'marriage'] as $type) {
             $out = $svc->render($type, 'Maximilian Alexander Johnson-Kpadeh Wesseh', '2026-09-10', 'X-1', 'M-1', ['Officiant' => 'Rev. A'], $t, null)->output();
             expect(pdfPages($out))->toBe(1);
@@ -41,7 +46,7 @@ test('every certificate template is a single page, with custom or random message
     // No message chosen → one stock message is picked and kept.
     $b2 = Baptism::create(['candidate_name' => 'Ruth Kollie', 'baptism_date' => '2026-09-11']);
     $this->actingAs($this->admin)->post("/certificates/baptisms/{$b2->id}/issue", ['template' => 'heritage']);
-    expect(\App\Support\CertificateMessages::TYPES['baptism']['messages'])->toContain($b2->fresh()->certificate_message);
+    expect(CertificateMessages::TYPES['baptism']['messages'])->toContain($b2->fresh()->certificate_message);
 });
 
 test('only approved members can download their documents', function () {
@@ -61,7 +66,7 @@ test('only approved members can download their documents', function () {
 
 test('basket collections, budgets, funds and notifications', function () {
     $a = $this->actingAs($this->admin);
-    $a->post('/offerings', ['is_collection' => true, 'amount' => 25000, 'currency' => 'LRD', 'payment_method' => 'cash', 'offering_type' => 'Regular Offering', 'service_type' => 'Sunday Worship', 'offering_date' => now()->toDateString(), 'counted_by' => 'Cashier One'])->assertSessionHasNoErrors();
+    $a->post('/offerings', ['is_collection' => true, 'amount' => 25000, 'currency' => 'LRD', 'payment_method' => 'cash', 'offering_type' => 'Regular Offering', 'service_type' => 'Sunday Worship', 'service_session' => 'first_service', 'offering_date' => now()->toDateString(), 'counted_by' => 'Cashier One'])->assertSessionHasNoErrors();
     $o = Offering::first();
     expect($o->is_collection)->toBeTrue()->and($o->member_id)->toBeNull()->and($o->member_name)->toContain('Service collection');
     $a->post('/offerings', ['is_collection' => true, 'amount' => 10, 'payment_method' => 'cash', 'offering_type' => 'Regular Offering', 'service_type' => 'Sunday Worship', 'offering_date' => now()->toDateString()])
@@ -74,7 +79,7 @@ test('basket collections, budgets, funds and notifications', function () {
 
     // Fund target can be set on the built-in General Fund and edited later.
     $a->post('/funds', ['name' => 'General Fund', 'target_amount' => 5000])->assertSessionHasNoErrors();
-    $fund = \App\Models\FinanceFund::where('name', 'General Fund')->first();
+    $fund = FinanceFund::where('name', 'General Fund')->first();
     $a->patch("/funds/{$fund->id}", ['name' => 'General Fund', 'target_amount' => 8000, 'currency' => 'USD'])->assertSessionHasNoErrors();
     expect((float) $fund->fresh()->target_amount)->toBe(8000.0);
 
@@ -97,11 +102,11 @@ test('session limit, login throttling and the not-found page', function () {
     }
     // Tests use the array session driver, so call the limiter the way the Login listener does.
     config(['session.driver' => 'database']);
-    expect(\App\Support\SessionLimiter::enforce($user, request()))->toBe(2);
+    expect(SessionLimiter::enforce($user, request()))->toBe(2);
     expect(DB::table('sessions')->where('user_id', $user->id)->pluck('id')->all())->toBe(['old-1']);
     config(['session.driver' => 'array']);
 
-    \Illuminate\Support\Facades\Cache::flush();
+    Cache::flush();
     auth()->logout();
     foreach (range(1, 5) as $i) {
         $this->post('/login', ['email' => 'sam@example.test', 'password' => 'nope']);
