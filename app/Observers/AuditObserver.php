@@ -113,7 +113,7 @@ class AuditObserver
     ];
 
     /** Never copied into the log. */
-    private const HIDDEN = ['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes', 'updated_at', 'created_at'];
+    private const HIDDEN = ['password', 'pending_password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes', 'updated_at', 'created_at'];
 
     /**
      * F04: free-text pastoral content. The log records THAT these changed,

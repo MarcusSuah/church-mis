@@ -6,6 +6,7 @@ use App\Enums\LeadershipRole;
 use App\Http\Controllers\Controller;
 use App\Models\Leader;
 use App\Models\Member;
+use App\Rules\SafeUrl;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -28,20 +29,20 @@ class LeadershipController extends Controller
                 ->orderBy('display_order')
                 ->orderBy('last_name')
                 ->get()
-                ->map(fn(Leader $l) => [
+                ->map(fn (Leader $l) => [
                     ...$l->only(['id', 'member_id', 'first_name', 'last_name', 'title', 'leadership_role', 'bio', 'photo_url', 'email', 'phone', 'office_location', 'display_order', 'is_active']),
                     'ordination_date' => $l->ordination_date?->format('Y-m-d'),
                     'start_date' => $l->start_date?->format('Y-m-d'),
                     'member_code' => $l->member?->member_id,
                 ]),
-            'memberOptions' => Inertia::optional(fn() => Member::query()
+            'memberOptions' => Inertia::optional(fn () => Member::query()
                 ->whereIn('status', ['Active', 'Approved'])
                 // Type-ahead: at most 50 matches for ?member_q= (F07); this used to load every member.
                 ->search(mb_substr((string) request('member_q', ''), 0, 100))
                 ->orderBy('last_name')->orderBy('first_name')
                 ->limit(50)
                 ->get(['id', 'member_id', 'first_name', 'last_name', 'email', 'phone', 'photo_url'])
-                ->map(fn(Member $m) => [
+                ->map(fn (Member $m) => [
                     'id' => $m->id,
                     'code' => $m->member_id,
                     'first_name' => $m->first_name,
@@ -52,7 +53,7 @@ class LeadershipController extends Controller
                     'photo_url' => $m->photo_url,
                 ])),
             'roles' => collect(LeadershipRole::cases())
-                ->map(fn(LeadershipRole $role) => $role->value)
+                ->map(fn (LeadershipRole $role) => $role->value)
                 ->values()
                 ->all(),
             'can' => [
@@ -102,7 +103,7 @@ class LeadershipController extends Controller
                 Rule::enum(LeadershipRole::class),
             ],
             'bio' => ['nullable', 'string', 'max:5000'],
-            'photo_url' => ['nullable', 'string', 'max:500'],
+            'photo_url' => ['nullable', 'string', 'max:500', new SafeUrl],
             'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:30'],
             'office_location' => ['nullable', 'string', 'max:150'],

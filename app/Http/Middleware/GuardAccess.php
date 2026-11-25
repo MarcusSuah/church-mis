@@ -11,7 +11,8 @@ use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Stops blocked IP addresses from reaching the site at all, and signs out
- * users whose account an administrator has blocked.
+ * users whose account an administrator has blocked, and member-only users
+ * whose membership is suspended, inactive or rejected.
  */
 class GuardAccess
 {
@@ -29,6 +30,17 @@ class GuardAccess
             $request->session()->regenerateToken();
 
             return redirect()->route('login')->with('status', 'Your account has been blocked. Please contact the church office.');
+        }
+
+        // A member suspended or deactivated while signed in is signed out on
+        // their next request, and the sign-in page explains why.
+        if ($user && ($lockout = $user->memberLockoutMessage())) {
+            ActivityLogger::log($request, 'blocked', 'Member account not active tried to use the site', $user, ['member_status' => $user->member?->status]);
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()->route('login')->withErrors(['account' => $lockout]);
         }
 
         return $next($request);

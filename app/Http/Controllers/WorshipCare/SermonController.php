@@ -6,6 +6,7 @@ use App\Enums\ServiceSession;
 use App\Enums\ServiceType;
 use App\Http\Controllers\Controller;
 use App\Models\Sermon;
+use App\Rules\SafeUrl;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -28,7 +29,7 @@ class SermonController extends Controller
             ->get();
 
         return Inertia::render('sermons/index', [
-            'sermons' => $sermons->map(fn(Sermon $sermon) => [
+            'sermons' => $sermons->map(fn (Sermon $sermon) => [
                 ...$sermon->only([
                     'id',
                     'title',
@@ -141,7 +142,7 @@ class SermonController extends Controller
         Request $request,
         Sermon $sermon
     ): JsonResponse {
-        $key = 'sermon_viewed.' . $sermon->id;
+        $key = 'sermon_viewed.'.$sermon->id;
 
         if (! $request->session()->has($key)) {
             $sermon->increment('view_count');
@@ -201,7 +202,7 @@ class SermonController extends Controller
                 'max:20480',
             ],
 
-            'thumbnail_url' => ['nullable', 'string', 'max:500'],
+            'thumbnail_url' => ['nullable', 'string', 'max:500', new SafeUrl],
             'duration_minutes' => ['nullable', 'integer', 'min:1', 'max:600'],
             'tags' => ['nullable', 'array', 'max:15'],
             'tags.*' => ['string', 'max:40'],
@@ -217,7 +218,7 @@ class SermonController extends Controller
             : null;
 
         $data['tags'] = collect($data['tags'] ?? [])
-            ->map(fn($tag) => mb_strtolower(trim($tag)))
+            ->map(fn ($tag) => mb_strtolower(trim($tag)))
             ->filter()
             ->unique()
             ->values()
@@ -259,7 +260,7 @@ class SermonController extends Controller
             $data[$urlField] = $disk->url($path);
 
             $previous = $sermon?->{$urlField};
-            $prefix = rtrim($disk->url(''), '/') . '/';
+            $prefix = rtrim($disk->url(''), '/').'/';
 
             if ($previous && str_starts_with($previous, $prefix)) {
                 $disk->delete(substr($previous, strlen($prefix)));

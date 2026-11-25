@@ -7,6 +7,7 @@ use App\Models\Department;
 use App\Models\DepartmentActivity;
 use App\Models\DepartmentMember;
 use App\Models\Member;
+use App\Rules\SafeUrl;
 use App\Support\LeadershipScope;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -277,7 +278,7 @@ class DepartmentController extends Controller
             'location' => ['nullable', 'string', 'max:150'],
             'contact_email' => ['nullable', 'email', 'max:255'],
             'contact_phone' => ['nullable', 'string', 'max:30'],
-            'banner_url' => ['nullable', 'string', 'max:500'],
+            'banner_url' => ['nullable', 'string', 'max:500', new SafeUrl],
             'is_active' => ['boolean'],
         ];
     }

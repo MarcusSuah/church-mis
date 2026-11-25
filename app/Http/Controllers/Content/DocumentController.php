@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Content;
 use App\Enums\DocumentCategory;
 use App\Http\Controllers\Sacraments\RecordsController;
 use App\Models\Document;
+use App\Rules\SafeUrl;
+use App\Support\ListQuery;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -37,8 +40,8 @@ class DocumentController extends RecordsController
             'description' => ['nullable', 'string', 'max:2000'],
             'category' => ['required', Rule::enum(DocumentCategory::class)],
             'file' => ['nullable', 'file', 'max:25600', 'mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,csv,txt,png,jpg,jpeg,webp,zip'],
-            'file_url' => ['nullable', 'url', 'max:500'],
-            'thumbnail_url' => ['nullable', 'string', 'max:500'],
+            'file_url' => ['nullable', 'url:http,https', 'max:500'],
+            'thumbnail_url' => ['nullable', 'string', 'max:500', new SafeUrl],
             'version' => ['nullable', 'string', 'max:20'],
             'author_name' => ['nullable', 'string', 'max:255'],
             'department' => ['nullable', 'string', 'max:120'],
@@ -141,12 +144,12 @@ class DocumentController extends RecordsController
 
     protected int $perPage = 12;
 
-    protected function stats(\Illuminate\Database\Eloquent\Builder $all, \Illuminate\Database\Eloquent\Builder $filtered): array
+    protected function stats(Builder $all, Builder $filtered): array
     {
         // Category chips count documents matching the search and archive filter, before the category filter.
         $f = request();
         $base = (clone $all)->where('is_archived', $f->string('archived')->toString() === 'yes');
-        \App\Support\ListQuery::search($base, mb_substr(trim($f->string('search')->toString()), 0, 100), $this->searchColumns());
+        ListQuery::search($base, mb_substr(trim($f->string('search')->toString()), 0, 100), $this->searchColumns());
 
         return [
             'total' => (clone $all)->where('is_archived', false)->count(),

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\System;
 
 use App\Http\Controllers\Controller;
+use App\Rules\SafeUrl;
 use App\Support\ChurchSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -26,7 +27,7 @@ class ChurchSettingsController extends Controller
             'address' => ['nullable', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:150'],
             'phone' => ['nullable', 'string', 'max:60'],
-            'logo_url' => ['nullable', 'string', 'max:500'],
+            'logo_url' => ['nullable', 'string', 'max:500', new SafeUrl],
             'currency' => ['required', Rule::in(ChurchSettings::CURRENCIES)],
             'exchange_rate' => ['required', 'numeric', 'min:0.0001', 'max:1000000'],
             'birthday_notifications' => ['boolean'],

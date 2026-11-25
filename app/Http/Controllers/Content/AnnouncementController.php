@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Content;
 
 use App\Http\Controllers\Sacraments\RecordsController;
 use App\Models\Announcement;
+use App\Rules\SafeUrl;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
@@ -37,7 +38,7 @@ class AnnouncementController extends RecordsController
             'category' => ['required', Rule::in(self::CATEGORIES)],
             'priority' => ['required', Rule::in(self::PRIORITIES)],
             'author_name' => ['nullable', 'string', 'max:255'],
-            'banner_url' => ['nullable', 'string', 'max:500'],
+            'banner_url' => ['nullable', 'string', 'max:500', new SafeUrl],
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'is_pinned' => ['boolean'],

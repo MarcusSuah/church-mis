@@ -6,6 +6,7 @@ use App\Enums\NotificationType;
 use App\Http\Controllers\Controller;
 use App\Models\Notification;
 use App\Models\Role;
+use App\Rules\SafeUrl;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -115,7 +116,7 @@ class NotificationController extends Controller
             'message' => ['required', 'string', 'max:2000'],
             'notification_type' => ['required', Rule::enum(NotificationType::class)],
             'recipient' => ['required', 'string', 'max:100'],
-            'link_url' => ['nullable', 'string', 'max:500'],
+            'link_url' => ['nullable', 'string', 'max:500', new SafeUrl],
         ]);
 
         [$type, $id] = str_contains($data['recipient'], ':') ? explode(':', $data['recipient'], 2) : [$data['recipient'], null];

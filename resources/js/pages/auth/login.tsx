@@ -1,7 +1,9 @@
-import { Form, Head } from '@inertiajs/react';
+import { Form, Head, usePage } from '@inertiajs/react';
+import { ShieldAlert } from 'lucide-react';
 import InputError from '@/components/input-error';
 import PasswordInput from '@/components/password-input';
 import TextLink from '@/components/text-link';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -17,7 +19,15 @@ type Props = {
     canRegister: boolean;
 };
 
-export default function Login({ status, canResetPassword, canRegister }: Props) {
+export default function Login({
+    status,
+    canResetPassword,
+    canRegister,
+}: Props) {
+    // Set when a signed-in member is suspended or deactivated and sent back here.
+    const accountNotice = usePage<{ errors: Record<string, string> }>().props
+        .errors?.account;
+
     return (
         <>
             <Head title="Log in" />
@@ -29,6 +39,21 @@ export default function Login({ status, canResetPassword, canRegister }: Props) 
             >
                 {({ processing, errors }) => (
                     <>
+                        {/* Suspended / inactive membership: shown in the page, not as a toast. */}
+                        {(errors.account ?? accountNotice) && (
+                            <Alert
+                                variant="destructive"
+                                className="border-destructive/40 bg-destructive/5 text-destructive"
+                                data-test="account-notice"
+                            >
+                                <ShieldAlert />
+                                <AlertTitle>Account not active</AlertTitle>
+                                <AlertDescription>
+                                    {errors.account ?? accountNotice}
+                                </AlertDescription>
+                            </Alert>
+                        )}
+
                         <div className="grid gap-6">
                             <div className="grid gap-2">
                                 <Label htmlFor="email">Email address</Label>
@@ -92,7 +117,6 @@ export default function Login({ status, canResetPassword, canRegister }: Props) 
 
                         <div className="text-center text-sm text-muted-foreground">
                             Don't have an account?{' '}
-
                             {canRegister && (
                                 <TextLink href={register()} tabIndex={5}>
                                     Sign up

@@ -8,6 +8,7 @@ use App\Http\Requests\Members\StoreMemberRequest;
 use App\Http\Requests\Members\UpdateMemberRequest;
 use App\Models\Member;
 use App\Support\Csv;
+use App\Support\UserSessions;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -410,6 +411,12 @@ class MemberController extends Controller
                 'reviewed_by' => $request->user()->id,
                 'reviewed_at' => now(),
             ])->save();
+        }
+
+        // Suspended, inactive or rejected: end their sessions and API tokens
+        // now. GuardAccess and the sign-in rules keep them out until reactivated.
+        if ($member->wasChanged('status') && array_key_exists($member->status, Member::LOCKED_OUT)) {
+            UserSessions::endAll($user);
         }
     }
 }

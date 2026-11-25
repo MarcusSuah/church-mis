@@ -48,6 +48,9 @@ type FormData = {
     phone: string;
     alt_phone: string;
     email: string;
+    /** Public only: the password the member signs in with once approved. Never stored in the browser. */
+    password: string;
+    password_confirmation: string;
     address: string;
     city: string;
     state: string;
@@ -155,6 +158,8 @@ const FIELD_STEP: Record<string, number> = {
     phone: 0,
     alt_phone: 0,
     email: 0,
+    password: 0,
+    password_confirmation: 0,
     address: 0,
     city: 0,
     state: 0,
@@ -190,6 +195,8 @@ const REQUIRED: Record<WizardMode, Record<number, (keyof FormData)[]>> = {
             'date_of_birth',
             'phone',
             'email',
+            'password',
+            'password_confirmation',
             'address',
             'city',
             'country',
@@ -215,6 +222,8 @@ const LABELS: Partial<Record<keyof FormData, string>> = {
     date_of_birth: 'Date of birth',
     phone: 'Primary phone',
     email: 'Email address',
+    password: 'Password',
+    password_confirmation: 'Password confirmation',
     address: 'Street address',
     city: 'City',
     country: 'Country',
@@ -241,6 +250,8 @@ function initialData(mode: WizardMode, m?: Partial<Member> | null): FormData {
         phone: m?.phone ?? '',
         alt_phone: m?.alt_phone ?? '',
         email: m?.email ?? '',
+        password: '',
+        password_confirmation: '',
         address: m?.address ?? '',
         city: m?.city ?? '',
         state: m?.state ?? '',
@@ -401,6 +412,13 @@ export default function RegistrationWizard({
             next.email = 'Enter a valid email address.';
         if (
             s === 0 &&
+            !staff &&
+            data.password_confirmation &&
+            data.password !== data.password_confirmation
+        )
+            next.password_confirmation = 'The passwords do not match.';
+        if (
+            s === 0 &&
             data.date_of_birth &&
             new Date(data.date_of_birth) >= new Date()
         )
@@ -450,6 +468,8 @@ export default function RegistrationWizard({
                 department,
                 ministry,
                 photo,
+                password,
+                password_confirmation,
                 ...rest
             } = d;
             const payload: Record<string, unknown> = {
@@ -472,6 +492,8 @@ export default function RegistrationWizard({
                 if (editing) payload._method = 'patch';
             } else {
                 payload.consent = consent;
+                payload.password = password;
+                payload.password_confirmation = password_confirmation;
             }
             return payload as unknown as FormData;
         });
@@ -550,12 +572,13 @@ export default function RegistrationWizard({
                                 className="flex w-12 shrink-0 flex-col items-center gap-1 sm:w-20"
                             >
                                 <span
-                                    className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors ${active
-                                        ? 'bg-primary text-primary-foreground'
-                                        : done
-                                            ? 'bg-success text-white'
-                                            : 'bg-muted text-muted-foreground'
-                                        }`}
+                                    className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors ${
+                                        active
+                                            ? 'bg-primary text-primary-foreground'
+                                            : done
+                                              ? 'bg-success text-white'
+                                              : 'bg-muted text-muted-foreground'
+                                    }`}
                                 >
                                     {done ? (
                                         <Check className="size-4" />
@@ -727,6 +750,39 @@ export default function RegistrationWizard({
                         </Field>
                     </div>
 
+                    {!staff && (
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <Field
+                                label="Password"
+                                required={isRequired(0, 'password')}
+                                error={errors.password}
+                                helper="You'll sign in with your email and this password once your membership is approved."
+                            >
+                                <input
+                                    {...input('password')}
+                                    type="password"
+                                    placeholder="Create a password"
+                                    autoComplete="new-password"
+                                />
+                            </Field>
+                            <Field
+                                label="Confirm Password"
+                                required={isRequired(
+                                    0,
+                                    'password_confirmation',
+                                )}
+                                error={errors.password_confirmation}
+                            >
+                                <input
+                                    {...input('password_confirmation')}
+                                    type="password"
+                                    placeholder="Repeat the password"
+                                    autoComplete="new-password"
+                                />
+                            </Field>
+                        </div>
+                    )}
+
                     <Field
                         label="Street Address"
                         required={isRequired(0, 'address')}
@@ -820,10 +876,11 @@ export default function RegistrationWizard({
                                         type="button"
                                         key={String(v)}
                                         onClick={() => setData('baptized', v)}
-                                        className={`flex-1 rounded-lg border px-3 py-2 text-sm transition-colors ${data.baptized === v
-                                            ? 'border-primary bg-primary/5 font-semibold text-primary'
-                                            : 'border-border text-muted-foreground'
-                                            }`}
+                                        className={`flex-1 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                                            data.baptized === v
+                                                ? 'border-primary bg-primary/5 font-semibold text-primary'
+                                                : 'border-border text-muted-foreground'
+                                        }`}
                                     >
                                         {v ? 'Yes' : 'No'}
                                     </button>
@@ -877,10 +934,11 @@ export default function RegistrationWizard({
                                         type="button"
                                         key={m}
                                         onClick={() => toggleInterest(m)}
-                                        className={`rounded-full border px-3 py-1 text-xs transition-colors ${on
-                                            ? 'border-primary bg-primary text-primary-foreground'
-                                            : 'border-border text-muted-foreground hover:bg-muted'
-                                            }`}
+                                        className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+                                            on
+                                                ? 'border-primary bg-primary text-primary-foreground'
+                                                : 'border-border text-muted-foreground hover:bg-muted'
+                                        }`}
                                     >
                                         {m}
                                     </button>
@@ -1024,7 +1082,7 @@ export default function RegistrationWizard({
                                 {data.family.children.map((c, i) => (
                                     <div
                                         key={i}
-                                       className="grid min-w-0 grid-cols-1 items-start gap-2 sm:grid-cols-[minmax(0,1fr)_160px_auto]"
+                                        className="grid min-w-0 grid-cols-1 items-start gap-2 sm:grid-cols-[minmax(0,1fr)_160px_auto]"
                                     >
                                         <div>
                                             <input
@@ -1040,14 +1098,14 @@ export default function RegistrationWizard({
                                             {errors[
                                                 `family.children.${i}.name`
                                             ] && (
-                                                    <p className="error-text">
-                                                        {
-                                                            errors[
+                                                <p className="error-text">
+                                                    {
+                                                        errors[
                                                             `family.children.${i}.name`
-                                                            ]
-                                                        }
-                                                    </p>
-                                                )}
+                                                        ]
+                                                    }
+                                                </p>
+                                            )}
                                         </div>
                                         <input
                                             type="date"
@@ -1336,7 +1394,7 @@ export default function RegistrationWizard({
                     (footerStart ?? <span />)
                 )}
                 <div className="ml-auto flex flex-wrap items-center justify-end gap-2 sm:gap-3">
-                    <span className="whitespace-nowrap text-xs text-muted-foreground">
+                    <span className="text-xs whitespace-nowrap text-muted-foreground">
                         Step {step + 1} of {STEPS.length}
                     </span>
                     {step < STEPS.length - 1 ? (
@@ -1407,7 +1465,7 @@ function ReviewRow({ label, value }: { label: string; value: string }) {
             <dt className="text-[11px] tracking-wide text-muted-foreground uppercase">
                 {label}
             </dt>
-            <dd className="break-words text-sm text-foreground">
+            <dd className="text-sm break-words text-foreground">
                 {value && value !== '—' ? value : '—'}
             </dd>
         </div>

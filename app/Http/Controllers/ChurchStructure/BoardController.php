@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Board;
 use App\Models\BoardMember;
 use App\Models\Member;
+use App\Rules\SafeUrl;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -193,7 +194,7 @@ class BoardController extends Controller
             'meeting_schedule' => ['nullable', 'string', 'max:150'],
             'location' => ['nullable', 'string', 'max:150'],
             'contact_email' => ['nullable', 'email', 'max:255'],
-            'banner_url' => ['nullable', 'string', 'max:500'],
+            'banner_url' => ['nullable', 'string', 'max:500', new SafeUrl],
             'is_active' => ['boolean'],
         ];
     }

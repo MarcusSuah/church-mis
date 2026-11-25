@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Members;
 
+use App\Concerns\PasswordValidationRules;
 use App\Http\Controllers\Controller;
 use App\Models\Member;
+use App\Support\MemberEmails;
 use App\Support\Notifier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -13,9 +15,12 @@ use Inertia\Response;
 /**
  * Public "Join Our Family" form. No login required — submissions land in
  * the Pending Registrations queue with an SSBC-REG-YYYY-NNNNNN reference.
+ * The member chooses a password here and signs in with it once approved.
  */
 class PublicRegistrationController extends Controller
 {
+    use PasswordValidationRules;
+
     public function create(): Response
     {
         return Inertia::render('public-member-registration', [
@@ -48,6 +53,8 @@ class PublicRegistrationController extends Controller
             'phone' => ['required', 'string', 'max:30'],
             'alt_phone' => ['nullable', 'string', 'max:30'],
             'email' => ['required', 'email', 'max:255', 'unique:members,email'],
+            // Used to sign in once staff approve the registration.
+            'password' => $this->passwordRules(),
             'address' => ['required', 'string', 'max:255'],
             'city' => ['required', 'string', 'max:100'],
             'state' => ['nullable', 'string', 'max:100'],
@@ -85,8 +92,8 @@ class PublicRegistrationController extends Controller
             ? asset('storage/'.$request->file('photo')->store('uploads/members', 'public'))
             : null;
 
-        $member = Member::create([
-            ...collect($validated)->except(['photo', 'consent'])->all(),
+        $member = new Member([
+            ...collect($validated)->except(['photo', 'consent', 'password'])->all(),
             'photo_url' => $photoUrl,
             'baptized' => $request->boolean('baptized'),
             'communion_participant' => $request->boolean('communion_participant'),
@@ -95,6 +102,10 @@ class PublicRegistrationController extends Controller
             'reg_ref' => Member::nextRegRef(),
             'date_joined' => now()->toDateString(),
         ]);
+        // Hashed by the model cast; moved onto the login when staff approve the member.
+        $member->forceFill(['pending_password' => $validated['password']])->save();
+
+        MemberEmails::registrationReceived($member, choseSignInPassword: true);
 
         Notifier::permission(
             'members.view',
@@ -108,7 +119,7 @@ class PublicRegistrationController extends Controller
             'reference' => $member->reg_ref,
             'name' => $member->first_name,
             'email' => $member->email,
-            // No login yet: one is created (with a set-password email) when staff approve the registration.
+            // No login yet: it is created with the chosen password when staff approve the registration.
             'has_account' => false,
         ]);
 

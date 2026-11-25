@@ -146,9 +146,9 @@ export default function PublicMemberRegistration({ church, services }: Props) {
                             <p className="max-w-sm text-xs text-muted-foreground">
                                 Keep this reference for any enquiries. We'll
                                 contact you at{' '}
-                                <strong>{submitted.email}</strong>. To view your
-                                membership online later, create an account with
-                                this same email.
+                                <strong>{submitted.email}</strong>. Once your
+                                membership is approved, sign in with this email
+                                and the password you chose.
                             </p>
                             <div className="flex gap-2">
                                 <button

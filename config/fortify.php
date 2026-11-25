@@ -101,7 +101,9 @@ return [
     |
     */
 
-    'middleware' => ['web'],
+    // "account-forms" rate-limits sign-up, password-reset and confirm-password
+    // submissions (see FortifyServiceProvider::configureRateLimiting()).
+    'middleware' => ['web', 'throttle:account-forms'],
 
     /*
     |--------------------------------------------------------------------------

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\System;
 use App\Http\Controllers\Controller;
 use App\Models\Belief;
 use App\Models\HeroSlide;
+use App\Rules\SafeUrl;
 use App\Support\ChurchSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,10 +16,26 @@ use Inertia\Response;
 class WebsiteController extends Controller
 {
     private const TEXT_KEYS = [
-        'tagline', 'description', 'mission', 'vision', 'story', 'pastor_message', 'city', 'country',
-        'service_sunday_school', 'service_sunday_worship', 'service_bible_study', 'service_prayer_meeting',
-        'about_heading', 'about_image_1', 'about_image_2', 'about_image_3',
-        'about_caption_1', 'about_caption_2', 'about_caption_3', 'contact_intro',
+        'tagline',
+        'description',
+        'mission',
+        'vision',
+        'story',
+        'pastor_message',
+        'city',
+        'country',
+        'service_sunday_school',
+        'service_sunday_worship',
+        'service_bible_study',
+        'service_prayer_meeting',
+        'about_heading',
+        'about_image_1',
+        'about_image_2',
+        'about_image_3',
+        'about_caption_1',
+        'about_caption_2',
+        'about_caption_3',
+        'contact_intro',
     ];
 
     public function index(): Response
@@ -46,9 +63,9 @@ class WebsiteController extends Controller
             'service_bible_study' => ['nullable', 'string', 'max:120'],
             'service_prayer_meeting' => ['nullable', 'string', 'max:120'],
             'about_heading' => ['nullable', 'string', 'max:120'],
-            'about_image_1' => ['nullable', 'url:http,https', 'max:500'],
-            'about_image_2' => ['nullable', 'url:http,https', 'max:500'],
-            'about_image_3' => ['nullable', 'url:http,https', 'max:500'],
+            'about_image_1' => ['nullable', 'string', 'max:500', 'regex:#^(https?://|/(?!/))\S+$#i'],
+            'about_image_2' => ['nullable', 'string', 'max:500', 'regex:#^(https?://|/(?!/))\S+$#i'],
+            'about_image_3' => ['nullable', 'string', 'max:500', 'regex:#^(https?://|/(?!/))\S+$#i'],
             'about_caption_1' => ['nullable', 'string', 'max:120'],
             'about_caption_2' => ['nullable', 'string', 'max:120'],
             'about_caption_3' => ['nullable', 'string', 'max:120'],
@@ -107,11 +124,11 @@ class WebsiteController extends Controller
             'eyebrow' => ['nullable', 'string', 'max:120'],
             'title' => ['required', 'string', 'max:160'],
             'subtitle' => ['nullable', 'string', 'max:500'],
-            'image_url' => ['nullable', 'string', 'max:500'],
+            'image_url' => ['nullable', 'string', 'max:500', new SafeUrl],
             'primary_label' => ['nullable', 'required_with:primary_url', 'string', 'max:60'],
-            'primary_url' => ['nullable', 'string', 'max:255'],
+            'primary_url' => ['nullable', 'string', 'max:255', new SafeUrl],
             'secondary_label' => ['nullable', 'required_with:secondary_url', 'string', 'max:60'],
-            'secondary_url' => ['nullable', 'string', 'max:255'],
+            'secondary_url' => ['nullable', 'string', 'max:255', new SafeUrl],
             'is_active' => ['boolean'],
             'sort_order' => ['nullable', 'integer', 'min:0', 'max:999'],
         ]) + ['sort_order' => 0];

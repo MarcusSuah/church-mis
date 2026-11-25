@@ -2,19 +2,15 @@
 
 namespace App\Providers;
 
+use App\Actions\Auth\AuthenticateUser;
 use App\Actions\Fortify\CreateNewUser;
 use App\Actions\Fortify\ResetUserPassword;
-use App\Models\BlockedIp;
-use App\Models\User;
-use App\Services\ActivityLogger;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
-use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
 use Laravel\Fortify\Fortify;
@@ -34,28 +30,13 @@ class FortifyServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Blocked accounts and blocked IPs can't sign in.
-        Fortify::authenticateUsing(function (Request $request) {
-            if (BlockedIp::isBlocked($request->ip())) {
-                throw ValidationException::withMessages(['email' => 'Access from your network has been blocked. Please contact the church office.']);
-            }
-            $user = User::where('email', $request->input(Fortify::username()))->first();
-            if (! $user || ! Hash::check((string) $request->input('password'), $user->password)) {
-                return null;
-            }
-            // Rejected sign-ups can't sign in (Phase 2, F02). Pending ones can,
-            // but only reach the member portal until staff link and approve them.
-            if ($user->isRejected()) {
-                ActivityLogger::log($request, 'login_failed', 'Rejected account tried to sign in', $user, ['email' => $user->email]);
-                throw ValidationException::withMessages(['email' => 'This account was not approved. Please contact the church office.']);
-            }
-            if ($user->blocked_at || ! $user->is_active) {
-                ActivityLogger::log($request, 'login_failed', 'Blocked account tried to sign in', $user, ['email' => $user->email]);
-                throw ValidationException::withMessages(['email' => 'Your account has been blocked. Please contact the church office.']);
-            }
-
-            return $user;
-        });
+        // Sign-in rules (blocked IPs, rejected or blocked accounts, suspended or
+        // inactive members) are shared with the API login: see AuthenticateUser.
+        Fortify::authenticateUsing(fn (Request $request) => app(AuthenticateUser::class)(
+            $request,
+            (string) $request->input(Fortify::username()),
+            (string) $request->input('password'),
+        ));
 
         $this->configureActions();
         $this->configureViews();
@@ -134,6 +115,29 @@ class FortifyServiceProvider extends ServiceProvider
         // Public forms (registration, password reset) — protects against bots.
         RateLimiter::for('public-forms', fn (Request $request) => Limit::perMinute(10)->by($request->ip())
             ->response(fn () => back()->withErrors(['email' => 'Too many requests. Please wait a minute and try again.'])));
+
+        // Fortify's account forms (applied to every Fortify route via config/fortify.php,
+        // but only these submissions count). Stops bots creating accounts or sending
+        // reset emails in bulk through the church's mail account, and password guessing
+        // on the confirm-password screen. Sign-in has its own "login" limiter.
+        RateLimiter::for('account-forms', function (Request $request) {
+            if (! $request->isMethod('POST')) {
+                return Limit::none();
+            }
+
+            if ($request->routeIs('password.confirm.store')) {
+                return Limit::perMinute(6)->by('confirm:'.($request->user()?->id ?: $request->ip()))
+                    ->response(fn () => back()->withErrors(['password' => 'Too many attempts. Please wait a minute and try again.']));
+            }
+
+            if ($request->routeIs('register.store', 'password.email', 'password.update')) {
+                return Limit::perMinute(10)->by('account-forms:'.$request->ip())
+                    ->response(fn () => back()->withInput($request->only('email', 'name'))
+                        ->withErrors(['email' => 'Too many requests. Please wait a minute and try again.']));
+            }
+
+            return Limit::none();
+        });
 
         // API: per signed-in user, falling back to the IP address.
         RateLimiter::for('api', fn (Request $request) => Limit::perMinute(60)->by($request->user()?->id ?: $request->ip()));

@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Members;
 
 use App\Models\Member;
+use App\Rules\SafeUrl;
 use Illuminate\Validation\Rule;
 
 trait MemberRequestRules
@@ -23,7 +24,7 @@ trait MemberRequestRules
             'city' => ['nullable', 'string', 'max:100'],
             'state' => ['nullable', 'string', 'max:100'],
             'country' => ['nullable', 'string', 'max:100'],
-            'photo_url' => ['nullable', 'string', 'max:2048'],
+            'photo_url' => ['nullable', 'string', 'max:2048', new SafeUrl],
             // Photo uploaded from the registration-style form (same rules as the public form).
             'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'department' => ['nullable', 'string', 'max:100'],

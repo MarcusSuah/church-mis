@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Content;
 
 use App\Http\Controllers\Sacraments\RecordsController;
 use App\Models\Event;
+use App\Rules\SafeUrl;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\Rule;
@@ -34,7 +35,7 @@ class EventController extends RecordsController
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'location' => ['nullable', 'string', 'max:255'],
             'address' => ['nullable', 'string', 'max:255'],
-            'banner_url' => ['nullable', 'string', 'max:500'],
+            'banner_url' => ['nullable', 'string', 'max:500', new SafeUrl],
             'organizer_name' => ['nullable', 'string', 'max:255'],
             'max_attendees' => ['nullable', 'integer', 'min:1', 'max:1000000'],
             'registered_count' => ['nullable', 'integer', 'min:0'],

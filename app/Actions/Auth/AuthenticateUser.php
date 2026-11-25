@@ -16,7 +16,9 @@ use Illuminate\Validation\ValidationException;
  *  - blocked IP addresses cannot sign in;
  *  - wrong email or password returns null (the caller shows one generic
  *    message, so nobody can tell which emails have accounts);
- *  - rejected sign-ups and blocked or deactivated accounts are refused.
+ *  - rejected sign-ups and blocked or deactivated accounts are refused;
+ *  - member-only logins whose member record is suspended, inactive or
+ *    rejected are refused (error key "account").
  */
 class AuthenticateUser
 {
@@ -48,6 +50,12 @@ class AuthenticateUser
         if ($user->blocked_at || ! $user->is_active) {
             ActivityLogger::log($request, 'login_failed', 'Blocked account tried to sign in', $user, ['email' => $user->email]);
             throw ValidationException::withMessages(['email' => 'Your account has been blocked. Please contact the church office.']);
+        }
+        // A member-only login follows its member record: suspended, inactive
+        // and rejected members can't sign in. Shown as a notice on the sign-in page.
+        if ($lockout = $user->memberLockoutMessage()) {
+            ActivityLogger::log($request, 'login_failed', 'Member account not active tried to sign in', $user, ['email' => $user->email, 'member_status' => $user->member?->status]);
+            throw ValidationException::withMessages(['account' => $lockout]);
         }
 
         return $user;

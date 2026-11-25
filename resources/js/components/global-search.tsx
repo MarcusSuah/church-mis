@@ -363,7 +363,7 @@ export function GlobalSearch() {
 
             <div
                 className={cn(
-                    'items-center gap-2 rounded-lg bg-muted px-3 py-2 md:flex md:w-72 lg:w-80',
+                    'items-center gap-2 rounded-lg bg-muted px-13 py-2 md:flex md:w-72 lg:w-80',
                     mobileOpen
                         ? 'fixed inset-x-3 top-3 z-50 flex shadow-lg ring-1 ring-border md:static md:shadow-none md:ring-0'
                         : 'hidden',
@@ -413,7 +413,7 @@ export function GlobalSearch() {
                         <X className="size-4" />
                     </button>
                 ) : (
-                    <kbd className="hidden rounded border border-border bg-background px-1.5 py-0.5 text-xs text-muted-foreground lg:block">
+                    <kbd className="hidden rounded border border-border bg-background py-0.5 text-xs text-muted-foreground">
                         Ctrl K
                     </kbd>
                 )}
@@ -426,8 +426,10 @@ export function GlobalSearch() {
                     className={cn(
                         'z-50 overflow-y-auto rounded-xl border border-border bg-popover text-popover-foreground shadow-xl',
                         mobileOpen
-                            ? 'fixed inset-x-3 top-16 max-h-[70vh] md:absolute md:inset-x-auto md:top-full md:right-0 md:mt-2 md:w-[28rem]'
-                            : 'absolute top-full right-0 mt-2 max-h-[70vh] w-[28rem] max-w-[calc(100vw-2rem)]',
+                            ? 'fixed inset-x-3 top-16 max-h-[70vh] md:absolute md:inset-x-auto md:top-full md:left-0 md:mt-2 md:w-[28rem]'
+                            : // Anchored to the left edge: the search sits at the left of the header, beside the
+                              // sidebar (z-40, above the header), so a panel growing leftwards would be hidden under it.
+                              'absolute top-full left-0 mt-2 max-h-[70vh] w-[28rem] max-w-[calc(100vw-2rem)]',
                     )}
                 >
                     {!ready ? (

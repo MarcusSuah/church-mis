@@ -6,6 +6,7 @@ use App\Enums\ExpenseCategory;
 use App\Enums\PaymentMethod;
 use App\Http\Controllers\Sacraments\RecordsController;
 use App\Models\Expense;
+use App\Rules\SafeUrl;
 use App\Support\ChartData;
 use App\Support\ChurchSettings;
 use App\Support\Money;
@@ -42,7 +43,7 @@ class ExpenseController extends RecordsController
             'fund_id' => ['nullable', 'uuid', 'exists:finance_funds,id'],
             'vendor_name' => ['nullable', 'string', 'max:255'],
             'reference_number' => ['nullable', 'string', 'max:100'],
-            'receipt_url' => ['nullable', 'string', 'max:500'],
+            'receipt_url' => ['nullable', 'string', 'max:500', new SafeUrl],
             'expense_date' => ['required', 'date'],
             'approved_by' => ['nullable', 'string', 'max:255'],
             'paid_by' => ['nullable', 'string', 'max:255'],

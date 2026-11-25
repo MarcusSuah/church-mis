@@ -15,11 +15,15 @@ use Illuminate\Support\Str;
 /**
  * Member logins.
  *
- * An approved member with an email address gets a login. The login is created
- * with a long random password that nobody knows, and the member is emailed a
- * one-time "set your password" link (Laravel's password-reset token, which
- * expires after config('auth.passwords.users.expire') minutes). If the link
- * expires, the member uses "Forgot password" on the sign-in page.
+ * An approved member with an email address gets a login.
+ *
+ *  - Members who chose a password on the public registration form sign in
+ *    with it as soon as staff approve them (no email needed).
+ *  - Otherwise (e.g. members added by staff) the login is created with a long
+ *    random password that nobody knows, and the member is emailed a one-time
+ *    "set your password" link (Laravel's password-reset token, which expires
+ *    after config('auth.passwords.users.expire') minutes). If the link
+ *    expires, the member uses "Forgot password" on the sign-in page.
  *
  * Security rules (Phase 2 — F01, F05):
  *  - No shared/default password, ever.
@@ -54,28 +58,37 @@ class MemberAccounts
                     return null;
                 }
 
-                $member->forceFill(['user_id' => $existing->id])->saveQuietly();
+                // The existing login keeps its own password.
+                $member->forceFill(['user_id' => $existing->id, 'pending_password' => null])->saveQuietly();
                 self::ensureMemberRole($existing);
 
                 return $existing;
             }
 
-            $user = User::create([
+            $chosenPassword = $member->pending_password;
+
+            $user = (new User)->forceFill([
                 'name' => trim("{$member->first_name} {$member->last_name}"),
                 'email' => $member->email,
                 'phone' => $member->phone,
-                // Random and never shown: the member sets their own password through the invite link.
-                'password' => Str::password(48),
+                // The (already hashed) password the member chose when registering. Without one,
+                // a random password nobody knows: the member sets theirs through the invite link.
+                'password' => $chosenPassword ?? Str::password(48),
+                // Staff reviewed and approved this registration (a trusted admin action,
+                // recorded by the User audit trail), so a member who chose a password can
+                // sign in straight away without waiting for a verification email.
+                'email_verified_at' => $chosenPassword ? now() : null,
                 'status' => UserStatus::APPROVED,
                 'is_active' => true,
                 'must_change_credentials' => false,
             ]);
+            $user->save();
             self::ensureMemberRole($user);
 
-            // Link without firing model events again.
-            $member->forceFill(['user_id' => $user->id])->saveQuietly();
+            // Link without firing model events again, and drop the copy of the password.
+            $member->forceFill(['user_id' => $user->id, 'pending_password' => null])->saveQuietly();
 
-            if ($sendInvite) {
+            if ($sendInvite && ! $chosenPassword) {
                 self::invite($user);
             }
 

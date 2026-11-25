@@ -107,7 +107,7 @@ class UserController extends Controller
             'phone' => ['nullable', 'string', 'max:30'],
             'is_active' => ['boolean'],
             'must_change_credentials' => ['boolean'],
-            'avatar' => ['nullable', 'image', 'max:2048'],
+            'avatar' => ['nullable', 'image', 'max:10480'],
         ]);
 
         if ($request->hasFile('avatar')) {

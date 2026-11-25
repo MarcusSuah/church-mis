@@ -143,6 +143,23 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     }
 
     /**
+     * Why this login may not use the site because of its member record
+     * (suspended, inactive or rejected), or null when it may. Only member-only
+     * logins follow their member record's status; staff accounts never do (F05).
+     */
+    public function memberLockoutMessage(): ?string
+    {
+        if (! $this->isMemberOnly()) {
+            return null;
+        }
+
+        // Read fresh (one column) so a status changed by staff applies at once.
+        $status = $this->member()->value('status');
+
+        return $status ? (Member::LOCKED_OUT[$status] ?? null) : null;
+    }
+
+    /**
      * Determine whether the user can access the application.
      */
     public function canAccessApplication(): bool

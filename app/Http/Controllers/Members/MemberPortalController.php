@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Members;
 
 use App\Http\Controllers\Controller;
 use App\Models\Announcement;
-use App\Models\Baptism;
 use App\Models\AttendanceRecord;
+use App\Models\Baptism;
 use App\Models\DocumentRequest;
 use App\Models\Donation;
 use App\Models\Event;
@@ -16,6 +16,10 @@ use App\Models\Tithe;
 use App\Models\User;
 use App\Models\Wedding;
 use App\Services\CertificateService;
+use App\Support\Csv;
+use App\Support\MemberAccounts;
+use App\Support\MemberEmails;
+use App\Support\Money;
 use App\Support\Notifier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -169,17 +173,17 @@ class MemberPortalController extends Controller
     {
         $tithes = Tithe::where('member_id', $member->id)->get()->map(fn (Tithe $t) => [
             'id' => 't-'.$t->id, 'date' => $this->date($t->tithe_date), 'type' => 'Tithe',
-            'fund' => $t->fund_name, 'method' => $t->payment_method, 'amount' => (float) $t->amount, 'currency' => $t->currency ?: \App\Support\Money::base(), 'amount_base' => $t->amountInBase(),
+            'fund' => $t->fund_name, 'method' => $t->payment_method, 'amount' => (float) $t->amount, 'currency' => $t->currency ?: Money::base(), 'amount_base' => $t->amountInBase(),
             'receipt' => $t->receipt_number ?: $t->reference_number,
         ]);
         $offerings = Offering::where('member_id', $member->id)->get()->map(fn (Offering $o) => [
             'id' => 'o-'.$o->id, 'date' => $this->date($o->offering_date), 'type' => $o->offering_type ?: 'Offering',
-            'fund' => $o->fund_name, 'method' => $o->payment_method, 'amount' => (float) $o->amount, 'currency' => $o->currency ?: \App\Support\Money::base(), 'amount_base' => $o->amountInBase(),
+            'fund' => $o->fund_name, 'method' => $o->payment_method, 'amount' => (float) $o->amount, 'currency' => $o->currency ?: Money::base(), 'amount_base' => $o->amountInBase(),
             'receipt' => $o->receipt_number ?: $o->reference_number,
         ]);
         $donations = Donation::where('member_id', $member->id)->get()->map(fn (Donation $d) => [
             'id' => 'd-'.$d->id, 'date' => $this->date($d->donation_date), 'type' => 'Donation',
-            'fund' => $d->fund_name, 'method' => $d->payment_method, 'amount' => (float) $d->amount, 'currency' => $d->currency ?: \App\Support\Money::base(), 'amount_base' => $d->amountInBase(),
+            'fund' => $d->fund_name, 'method' => $d->payment_method, 'amount' => (float) $d->amount, 'currency' => $d->currency ?: Money::base(), 'amount_base' => $d->amountInBase(),
             'receipt' => $d->receipt_number ?: $d->reference_number,
         ]);
 
@@ -315,16 +319,16 @@ class MemberPortalController extends Controller
 
         return response()->streamDownload(function () use ($rows, $member, $year, $currency) {
             $out = fopen('php://output', 'w');
-            \App\Support\Csv::put($out, [config('church.name').' — Giving Statement '.$year]);
-            \App\Support\Csv::put($out, [$member->full_name, $member->member_id]);
-            \App\Support\Csv::put($out, []);
+            Csv::put($out, [config('church.name').' — Giving Statement '.$year]);
+            Csv::put($out, [$member->full_name, $member->member_id]);
+            Csv::put($out, []);
             // F26: each gift keeps its own currency; the total is converted to the base currency.
-            \App\Support\Csv::put($out, ['Date', 'Type', 'Fund', 'Method', 'Amount', 'Currency', "Amount ({$currency})", 'Receipt']);
+            Csv::put($out, ['Date', 'Type', 'Fund', 'Method', 'Amount', 'Currency', "Amount ({$currency})", 'Receipt']);
             foreach ($rows as $r) {
-                \App\Support\Csv::put($out, [$r['date'], $r['type'], $r['fund'], $r['method'], number_format($r['amount'], 2, '.', ''), $r['currency'], number_format($r['amount_base'], 2, '.', ''), $r['receipt']]);
+                Csv::put($out, [$r['date'], $r['type'], $r['fund'], $r['method'], number_format($r['amount'], 2, '.', ''), $r['currency'], number_format($r['amount_base'], 2, '.', ''), $r['receipt']]);
             }
-            \App\Support\Csv::put($out, []);
-            \App\Support\Csv::put($out, ['Total', '', '', '', '', '', number_format((float) $rows->sum('amount_base'), 2, '.', ''), '']);
+            Csv::put($out, []);
+            Csv::put($out, ['Total', '', '', '', '', '', number_format((float) $rows->sum('amount_base'), 2, '.', ''), '']);
             fclose($out);
         }, "giving-statement-{$year}.csv", ['Content-Type' => 'text/csv']);
     }
@@ -360,6 +364,7 @@ class MemberPortalController extends Controller
             'reg_ref' => Member::nextRegRef(),
         ]);
 
+        MemberEmails::registrationReceived($member);
         Notifier::permission('members.view', 'New member registration', "New member registration from {$member->full_name}", 'member', '/pending-registrations');
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Registration submitted. The church office will review it shortly.']);
 
@@ -388,7 +393,7 @@ class MemberPortalController extends Controller
     {
         $member = Member::where('user_id', $user->id)->first();
 
-        if (! $member && $user->email && $user->hasVerifiedEmail() && \App\Support\MemberAccounts::canLinkTo($user)) {
+        if (! $member && $user->email && $user->hasVerifiedEmail() && MemberAccounts::canLinkTo($user)) {
             $candidates = Member::whereNull('user_id')->where('email', $user->email)->limit(2)->get();
             if ($candidates->count() === 1) {
                 $member = $candidates->first();

@@ -3,8 +3,10 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasSlug;
+use App\Notifications\MembershipApproved;
 use App\Support\ListQuery;
 use App\Support\MemberAccounts;
+use App\Support\MemberEmails;
 use App\Support\Notifier;
 use App\Support\Sequence;
 use Illuminate\Database\Eloquent\Builder;
@@ -25,7 +27,23 @@ class Member extends Model
 
     public const AWAITING_REVIEW = ['Pending', 'Under Review'];
 
+    /**
+     * Statuses that lock a member-only login out of the site, with the reason
+     * shown on the sign-in page. Pending / Under Review members who signed up
+     * through the portal keep portal access so they can follow their review.
+     *
+     * @var array<string, string>
+     */
+    public const LOCKED_OUT = [
+        'Suspended' => 'Your membership account has been suspended. Please contact the church office for help.',
+        'Inactive' => 'Your membership account is inactive. Please contact the church office to reactivate it.',
+        'Rejected' => 'Your membership registration was not approved. Please contact the church office.',
+    ];
+
     protected $appends = ['full_name', 'initials'];
+
+    /** The password chosen at registration never leaves the server. */
+    protected $hidden = ['pending_password'];
 
     protected $fillable = [
         'user_id',
@@ -79,6 +97,7 @@ class Member extends Model
             'communion_participant' => 'boolean',
             'family' => 'array',
             'reviewed_at' => 'datetime',
+            'pending_password' => 'hashed',
         ];
     }
 
@@ -119,9 +138,21 @@ class Member extends Model
             $justApproved = $member->wasChanged('status') && in_array($member->status, self::ACCEPTED, true)
                 && ! in_array($member->getOriginal('status'), self::ACCEPTED, true);
             $needsLogin = ! $member->user_id && $member->email && ($member->wasChanged('email') || $member->wasChanged('status'));
+            // Only approving a registration is emailed, not reactivating a suspended or inactive member.
+            $registrationApproved = $justApproved
+                && in_array($member->getOriginal('status'), [...self::AWAITING_REVIEW, 'Rejected'], true);
+            $hadLogin = (bool) $member->user_id;
+            $choseSignInPassword = filled($member->getAttributes()['pending_password'] ?? null);
 
-            if ($needsLogin) {
-                MemberAccounts::ensureFor($member);
+            $login = $needsLogin ? MemberAccounts::ensureFor($member) : null;
+
+            if ($registrationApproved) {
+                MemberEmails::approved($member, match (true) {
+                    ! $member->user_id => null,
+                    // A brand-new login without a chosen password gets the separate set-password email.
+                    ! $hadLogin && ! $choseSignInPassword && $login?->wasRecentlyCreated => MembershipApproved::SIGN_IN_SETUP,
+                    default => MembershipApproved::SIGN_IN_READY,
+                });
             }
             if ($justApproved) {
                 Notifier::member(
