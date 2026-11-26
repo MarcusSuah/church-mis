@@ -652,7 +652,7 @@ export default function Sidebar({
                     title={collapsed ? 'Home' : undefined}
                     className={`nav-item text-white/70 hover:bg-white/10 hover:text-white ${collapsed ? 'justify-center px-2' : ''}`}
                 >
-                    <Icon name="HomeIcon" size={18} className="shrink-0" />
+                    <Icon name="GlobeAltIcon" size={18} className="shrink-0" />
                     {!collapsed && (
                         <span className="flex-1 truncate">Home</span>
                     )}
